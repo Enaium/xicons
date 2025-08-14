@@ -1,0 +1,11 @@
+[versions]
+javafx = "0.1.0"
+javapoet = "0.7.0"
+flatlaf = "3.6.1"
+
+[libraries]
+javapoet = { module = "com.palantir.javapoet:javapoet", version.ref = "javapoet" }
+flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
+
+[plugins]
+javafx = { id = "org.openjfx.javafxplugin", version.ref = "javafx" }
