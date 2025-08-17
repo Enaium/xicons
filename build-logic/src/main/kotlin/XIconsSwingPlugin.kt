@@ -32,6 +32,7 @@ class XIconsSwingPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val sync = project.tasks.register("syncXIcons", SyncXIconsTask::class.java)
         project.tasks.register("generateSwing", GenerateSwingTask::class.java) {
+            group = "xicons"
             dependsOn(sync)
         }
     }

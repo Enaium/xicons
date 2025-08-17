@@ -55,7 +55,7 @@ XIcons is a powerful Java icon library collection that provides Java implementat
 
 You need to use the corresponding icon classifier:
 
-- `all` - All icon
+- `all` - All Icons
 - `antd` - Ant Design Icons
 - `carbon` - Carbon Icons
 - `fa` - Font Awesome Icons
@@ -115,6 +115,22 @@ implementation("cn.enaium.xicons:xicons-swing:1.0.0:fluent")
 implementation("cn.enaium.xicons:xicons-jfx:1.0.0:fluent")
 ```
 
+## 🧩 Kotlin Multiplatform Support
+
+XIcons also supports Kotlin Multiplatform projects. You can add the following dependency in your `build.gradle.kts`:
+
+```kotlin
+kotlin {
+    sourceSets {
+        val commonMain by getting {
+            dependencies {
+                implementation("cn.enaium.xicons:xicons-compose-fluent:1.0.0")
+            }
+        }
+    }
+}
+```
+
 ## 💻 Usage
 
 ### In Swing Applications
@@ -141,6 +157,19 @@ Label label = new Label("Dog", FluentIcons.Regular.AnimalDog);
 
 // Using Filled icons
 Button button = new Button("Dog", FluentIcons.Filled.AnimalDog);
+```
+
+### In Kotlin Multiplatform Applications
+
+```kotlin
+import cn.enaium.xicons.compose.FluentIcons
+import cn.enaium.xicons.compose.fluent.AnimalDog
+
+// Using Regular icons
+Icon(FluentIcons.Regular.AnimalDog, contentDescription = null)
+
+// Using Filled icons
+Icon(FluentIcons.Filled.AnimalDog, contentDescription = null)
 ```
 
 ## 🙏 Acknowledgments

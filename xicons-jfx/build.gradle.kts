@@ -1,7 +1,7 @@
 plugins {
-    id("java")
     id("xicons-jfx")
     id("multiple-icons")
+    id("publish")
     alias(libs.plugins.javafx)
 }
 

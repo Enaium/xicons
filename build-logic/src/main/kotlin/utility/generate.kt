@@ -66,7 +66,7 @@ fun Project.generateJava(extendPath: ClassName, pathIcon: ClassName, packageName
 
             val content = svg.readText()
             svg(content).forEach {
-                method.addStatement(it)
+                method.addStatement("path.${it}")
             }
 
             extractSvgViewBoxAttributes(content).forEach {
@@ -91,7 +91,7 @@ fun Project.generateJava(extendPath: ClassName, pathIcon: ClassName, packageName
             file.writeTo(sourceDir)
         }
 
-        val emptyTypes = mutableListOf<IconsType>()
+        val emptyTypes = mutableSetOf<IconsType>()
 
         fun generateAllIcons(iconsType: IconsType) {
             val type = TypeSpec.classBuilder("${dir.name.uppercaseFirstChar()}${iconsType.text}Icons")
@@ -155,7 +155,7 @@ fun Project.generateJava(extendPath: ClassName, pathIcon: ClassName, packageName
     }
 }
 
-private enum class IconsType(val text: String) {
+enum class IconsType(val text: String) {
     DEFAULT("Default"),
     REGULAR("Regular"),
     FILLED("Filled"),

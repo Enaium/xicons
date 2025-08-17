@@ -28,11 +28,11 @@ import java.util.regex.Pattern
 /**
  * @author Enaium
  */
-fun svg(content: String): List<String> {
+fun svg(content: String, f: Boolean = false): List<String> {
     val lines = mutableListOf<String>()
     val ds = extractPathDAttributes(content)
     for (d in ds) {
-        lines.addAll(convertPathDataToJava(d))
+        lines.addAll(convertPathDataToJava(d, f))
     }
     return lines
 }
@@ -53,7 +53,7 @@ private fun extractPathDAttributes(svg: String): List<String> {
     return result
 }
 
-private fun convertPathDataToJava(d: String): List<String> {
+private fun convertPathDataToJava(d: String, f: Boolean = false): List<String> {
     val cursor = PathCursor(d)
     val lines = mutableListOf<String>()
 
@@ -67,6 +67,16 @@ private fun convertPathDataToJava(d: String): List<String> {
     var lastQY: Double? = null
     var prev: Char? = null
 
+    fun f(v: Double): String {
+        return String.format(Locale.US, "%.2f", v).let {
+            if (f) {
+                "${it}f"
+            } else {
+                it
+            }
+        }
+    }
+
     while (cursor.hasMore()) {
         when (val cmd = cursor.nextCommand(prev)) {
             'M', 'm' -> {
@@ -77,7 +87,7 @@ private fun convertPathDataToJava(d: String): List<String> {
                     x += currentX
                     y += currentY
                 }
-                lines.add(String.format("path.moveTo(%s, %s)", f(x), f(y)))
+                lines.add(String.format("moveTo(%s, %s)", f(x), f(y)))
                 subStartX = x
                 currentX = subStartX
                 subStartY = y
@@ -94,7 +104,7 @@ private fun convertPathDataToJava(d: String): List<String> {
                         x += currentX
                         y += currentY
                     }
-                    lines.add(String.format("path.lineTo(%s, %s)", f(x), f(y)))
+                    lines.add(String.format("lineTo(%s, %s)", f(x), f(y)))
                     currentX = x
                     currentY = y
                     prev = 'L'
@@ -110,7 +120,7 @@ private fun convertPathDataToJava(d: String): List<String> {
                         x += currentX
                         y += currentY
                     }
-                    lines.add(String.format("path.lineTo(%s, %s)", f(x), f(y)))
+                    lines.add(String.format("lineTo(%s, %s)", f(x), f(y)))
                     currentX = x
                     currentY = y
                 }
@@ -126,7 +136,7 @@ private fun convertPathDataToJava(d: String): List<String> {
                 while (cursor.hasNumberAhead()) {
                     var x = cursor.nextNumber()
                     if (rel) x += currentX
-                    lines.add(String.format("path.horizontalLineTo(%s)", f(x)))
+                    lines.add(String.format("horizontalLineTo(%s)", f(x)))
                     currentX = x
                 }
                 prev = 'H'
@@ -141,7 +151,7 @@ private fun convertPathDataToJava(d: String): List<String> {
                 while (cursor.hasNumberAhead()) {
                     var y = cursor.nextNumber()
                     if (rel) y += currentY
-                    lines.add(String.format("path.verticalLineTo(%s)", f(y)))
+                    lines.add(String.format("verticalLineTo(%s)", f(y)))
                     currentY = y
                 }
                 prev = 'V'
@@ -170,7 +180,7 @@ private fun convertPathDataToJava(d: String): List<String> {
                     }
                     lines.add(
                         String.format(
-                            "path.curveTo(%s, %s, %s, %s, %s, %s)",
+                            "curveTo(%s, %s, %s, %s, %s, %s)",
                             f(x1),
                             f(y1),
                             f(x2),
@@ -208,7 +218,7 @@ private fun convertPathDataToJava(d: String): List<String> {
                     }
                     lines.add(
                         String.format(
-                            "path.curveTo(%s, %s, %s, %s, %s, %s)",
+                            "curveTo(%s, %s, %s, %s, %s, %s)",
                             f(x1),
                             f(y1),
                             f(x2),
@@ -240,7 +250,7 @@ private fun convertPathDataToJava(d: String): List<String> {
                         x += currentX
                         y += currentY
                     }
-                    lines.add(String.format("path.quadTo(%s, %s, %s, %s)", f(x1), f(y1), f(x), f(y)))
+                    lines.add(String.format("quadTo(%s, %s, %s, %s)", f(x1), f(y1), f(x), f(y)))
                     currentX = x
                     currentY = y
                     lastQX = x1
@@ -264,7 +274,7 @@ private fun convertPathDataToJava(d: String): List<String> {
                         x += currentX
                         y += currentY
                     }
-                    lines.add(String.format("path.quadTo(%s, %s, %s, %s)", f(x1), f(y1), f(x), f(y)))
+                    lines.add(String.format("quadTo(%s, %s, %s, %s)", f(x1), f(y1), f(x), f(y)))
                     currentX = x
                     currentY = y
                     lastQX = x1
@@ -291,7 +301,7 @@ private fun convertPathDataToJava(d: String): List<String> {
                     }
                     lines.add(
                         String.format(
-                            "path.arcTo(%s, %s, %s, %s, %s, %s, %s)",
+                            "arcTo(%s, %s, %s, %s, %s, %s, %s)",
                             f(rx),
                             f(ry),
                             f(rot),
@@ -312,7 +322,7 @@ private fun convertPathDataToJava(d: String): List<String> {
             }
 
             'Z', 'z' -> {
-                lines.add("path.close()")
+                lines.add("close()")
                 currentX = subStartX
                 currentY = subStartY
                 lastQY = null
@@ -326,11 +336,6 @@ private fun convertPathDataToJava(d: String): List<String> {
         }
     }
     return lines
-}
-
-private fun f(v: Double): String {
-    val s = String.format(Locale.US, "%.2f", v)
-    return s
 }
 
 private class PathCursor(private val s: String) {

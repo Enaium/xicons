@@ -9,6 +9,7 @@ repositories {
 
 dependencies {
     implementation(libs.javapoet)
+    implementation(libs.kotlinpoet)
 }
 
 gradlePlugin {
@@ -20,6 +21,10 @@ gradlePlugin {
         create("xicons-jfx") {
             id = "xicons-jfx"
             implementationClass = "XIconsJfxPlugin"
+        }
+        create("xicons-compose") {
+            id = "xicons-compose"
+            implementationClass = "XIconsComposePlugin"
         }
     }
 }

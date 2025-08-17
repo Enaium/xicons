@@ -64,6 +64,7 @@ XIcons 是一个强大的 Java 图标库集合，提供了多个流行的图标�
 - `ionicons5` - Ionicons 5
 - `material` - Material Design Icons
 - `tabler` - Tabler Icons
+
 ### Maven
 
 在您的 `pom.xml` 文件中添加以下依赖：
@@ -114,6 +115,21 @@ implementation("cn.enaium.xicons:xicons-swing:1.0.0:fluent")
 implementation("cn.enaium.xicons:xicons-jfx:1.0.0:fluent")
 ```
 
+## 🧩 Kotlin Multiplatform 支持
+
+XIcons 也支持 Kotlin Multiplatform 项目。您可以在 `build.gradle.kts` 中添加如下依赖：
+
+```kotlin
+kotlin {
+    sourceSets {
+        val commonMain by getting {
+            dependencies {
+                implementation("cn.enaium.xicons:xicons-compose-fluent:1.0.0")
+            }
+        }
+    }
+}
+```
 ## 💻 使用方法
 
 ```java
@@ -138,6 +154,19 @@ Label label = new Label("Dog", FluentIcons.Regular.AnimalDog);
 
 // 使用 Filled 图标
 Button button = new Button("Dog", FluentIcons.Filled.AnimalDog);
+```
+
+### 在 Kotlin Multiplatform 应用中使用
+
+```kotlin
+import cn.enaium.xicons.compose.FluentIcons
+import cn.enaium.xicons.compose.fluent.AnimalDog
+
+// 使用 Regular 图标
+Icon(FluentIcons.Regular.AnimalDog, contentDescription = null)
+
+// 使用 Filled 图标
+Icon(FluentIcons.Filled.AnimalDog, contentDescription = null)
 ```
 
 ## 🙏 致谢

@@ -1,10 +1,12 @@
 [versions]
 javafx = "0.1.0"
 javapoet = "0.7.0"
+kotlinpoet = "2.2.0"
 flatlaf = "3.6.1"
 
 [libraries]
 javapoet = { module = "com.palantir.javapoet:javapoet", version.ref = "javapoet" }
+kotlinpoet = { module = "com.squareup:kotlinpoet", version.ref = "kotlinpoet" }
 flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
 
 [plugins]
