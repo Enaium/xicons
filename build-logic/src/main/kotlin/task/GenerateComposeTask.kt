@@ -45,7 +45,7 @@ open class GenerateComposeTask : DefaultTask() {
 
         icons.toFile().listFiles().forEach { dir ->
             val iconNames = mutableListOf<String>()
-            val sourceDir = project.projectDir.resolve("xicons-compose-${dir.name}/src/commonMain/kotlin")
+            val sourceDir = project.projectDir.resolve("xicons-compose-${dir.name}/build/generated/commonMain/kotlin")
             if (sourceDir.exists()) {
                 sourceDir.deleteRecursively()
             }

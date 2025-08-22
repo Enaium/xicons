@@ -43,7 +43,7 @@ fun Project.generateJava(extendPath: ClassName, pathIcon: ClassName, packageName
 
     icons.toFile().listFiles().forEach { dir ->
         val iconNames = mutableListOf<String>()
-        val sourceDir = project.projectDir.resolve("src/${dir.name}Main/java")
+        val sourceDir = project.projectDir.resolve("build/generated/${dir.name}/java")
         if (sourceDir.exists()) {
             sourceDir.deleteRecursively()
         }
@@ -126,7 +126,7 @@ fun Project.generateJava(extendPath: ClassName, pathIcon: ClassName, packageName
             type.build().takeIf { it.fieldSpecs().isNotEmpty() }?.also { type ->
                 val file = javaBuilder(packageName, type).build()
 
-                file.writeTo(project.projectDir.resolve("src/${dir.name}Main/java"))
+                file.writeTo(sourceDir)
             } ?: emptyTypes.add(iconsType)
         }
 
@@ -151,7 +151,7 @@ fun Project.generateJava(extendPath: ClassName, pathIcon: ClassName, packageName
         }
         val file = javaBuilder(packageName, type.build()).build()
 
-        file.writeTo(project.projectDir.resolve("src/${dir.name}Main/java"))
+        file.writeTo(sourceDir)
     }
 }
 

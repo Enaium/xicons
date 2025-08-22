@@ -1,4 +1,4 @@
 plugins {
-    id("compose")
+    id("compose-gen")
     id("publish")
 }
