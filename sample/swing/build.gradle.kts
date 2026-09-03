@@ -1,5 +1,10 @@
 plugins {
     java
+    application
+}
+
+application {
+    mainClass = "Main"
 }
 
 dependencies {

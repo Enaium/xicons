@@ -2,8 +2,12 @@ import cn.enaium.xicons.swing.icons.*;
 import com.formdev.flatlaf.FlatLightLaf;
 
 import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author Enaium
@@ -52,22 +56,59 @@ public class Main {
     }
 
     private static JPanel createIconPanel(Object iconContainer, String title) throws IllegalAccessException {
-        JPanel contentPane = new JPanel(new WrapLayout(FlowLayout.LEFT));
-        contentPane.setBorder(BorderFactory.createTitledBorder(title));
-
+        List<JLabel> labels = new ArrayList<>();
         for (Field field : iconContainer.getClass().getFields()) {
             Object icon = field.get(iconContainer);
             if (icon instanceof Icon) {
                 JLabel label = new JLabel((Icon) icon);
                 label.setToolTipText(field.getName());
-                contentPane.add(label);
+                label.setName(field.getName());
+                labels.add(label);
             }
         }
+
+        JPanel contentPane = new JPanel(new WrapLayout(FlowLayout.LEFT));
+        contentPane.setBorder(BorderFactory.createTitledBorder(title));
+        labels.forEach(contentPane::add);
+
+        JTextField searchField = new JTextField();
+        searchField.setToolTipText("Search icons");
+        searchField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                filter();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                filter();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                filter();
+            }
+
+            private void filter() {
+                String query = searchField.getText().trim().toLowerCase();
+                contentPane.removeAll();
+                labels.stream()
+                        .filter(label -> query.isEmpty() || label.getName().toLowerCase().contains(query))
+                        .forEach(contentPane::add);
+                contentPane.revalidate();
+                contentPane.repaint();
+            }
+        });
+
+        JPanel panel = new JPanel(new BorderLayout());
+        JPanel searchPanel = new JPanel(new BorderLayout());
+        searchPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        searchPanel.add(searchField, BorderLayout.CENTER);
+        panel.add(searchPanel, BorderLayout.NORTH);
 
         JScrollPane scrollPane = new JScrollPane(contentPane);
         scrollPane.getVerticalScrollBar().setUnitIncrement(20);
         scrollPane.getHorizontalScrollBar().setUnitIncrement(20);
-        JPanel panel = new JPanel(new BorderLayout());
         panel.add(scrollPane, BorderLayout.CENTER);
 
         return panel;

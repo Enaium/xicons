@@ -24,6 +24,7 @@ package cn.enaium.xicons.swing.utility;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.List;
 
 /**
  * @author Enaium
@@ -53,10 +54,22 @@ public abstract class PathIcon implements Icon {
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         g2d.scale(width / 24.0, height / 24.0);
         g2d.setColor(color);
-        g2d.fill(path());
+        for (ExtendPath path : paths()) {
+            if (path.isFillEnabled()) {
+                g2d.fill(path);
+            }
+            if (path.getStrokeWidth() > 0) {
+                g2d.setStroke(new BasicStroke((float) path.getStrokeWidth(), path.getStrokeCap(), path.getStrokeJoin()));
+                g2d.draw(path);
+            }
+        }
     }
 
-    abstract public ExtendPath path();
+    public abstract List<ExtendPath> paths();
+
+    public ExtendPath path() {
+        return paths().get(0);
+    }
 
     @Override
     public int getIconWidth() {

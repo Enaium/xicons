@@ -39,6 +39,6 @@ open class GenerateSwingTask : DefaultTask() {
 
     @TaskAction
     fun execute() {
-        project.generateJava(EXTEND_PATH_CLASSNAME, PATH_ICON_CLASSNAME, "cn.enaium.xicons.swing.icons")
+        project.generateJava(EXTEND_PATH_CLASSNAME, PATH_ICON_CLASSNAME, "cn.enaium.xicons.swing.icons", true)
     }
 }

@@ -8,6 +8,13 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":xicons-compose:xicons-compose-fluent"))
+            implementation(project(":xicons-compose:xicons-compose-antd"))
+            implementation(project(":xicons-compose:xicons-compose-carbon"))
+            implementation(project(":xicons-compose:xicons-compose-fa"))
+            implementation(project(":xicons-compose:xicons-compose-ionicons4"))
+            implementation(project(":xicons-compose:xicons-compose-ionicons5"))
+            implementation(project(":xicons-compose:xicons-compose-material"))
+            implementation(project(":xicons-compose:xicons-compose-tabler"))
         }
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)

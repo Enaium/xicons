@@ -23,17 +23,25 @@
 package utility
 
 import com.palantir.javapoet.ClassName
+import com.palantir.javapoet.CodeBlock
 import com.palantir.javapoet.FieldSpec
 import com.palantir.javapoet.MethodSpec
+import com.palantir.javapoet.ParameterizedTypeName
 import com.palantir.javapoet.TypeSpec
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.support.uppercaseFirstChar
+import java.util.ArrayList
 import javax.lang.model.element.Modifier
 
 /**
  * @author Enaium
  */
-fun Project.generateJava(extendPath: ClassName, pathIcon: ClassName, packageName: String) {
+fun Project.generateJava(
+    extendPath: ClassName,
+    pathIcon: ClassName,
+    packageName: String,
+    scaleStrokeWidth: Boolean
+) {
     val icons =
         project.rootProject.layout.buildDirectory.get().asFile.toPath()
             .resolve("icons")
@@ -58,33 +66,70 @@ fun Project.generateJava(extendPath: ClassName, pathIcon: ClassName, packageName
             ).any { size -> file.nameWithoutExtension.contains(size) }
         }?.forEach { svg ->
 
-            val method = MethodSpec
+            val content = svg.readText()
+            val viewBox = extractSvgViewBoxAttributes(content).firstOrNull()?.split(" ")
+            val scale = viewBox?.let { parts ->
+                val width = parts[2].toDouble()
+                if (width > 24) 24.0 / width else 1.0
+            } ?: 1.0
+            val translateY = viewBox?.let { parts ->
+                val height = parts[3].toDouble()
+                (24.0 - height * scale) / 2.0
+            } ?: 0.0
+            val shapes = svg(content)
+
+            val listType = ParameterizedTypeName.get(ClassName.get(List::class.java), extendPath)
+
+            val pathsMethod = MethodSpec
+                .methodBuilder("paths")
+                .addModifiers(Modifier.PUBLIC)
+                .returns(listType)
+
+            val pathMethod = MethodSpec
                 .methodBuilder("path")
                 .addModifiers(Modifier.PUBLIC)
                 .returns(extendPath)
-                .addStatement($$"$T path = new $T()", extendPath, extendPath)
+                .addStatement("return paths().get(0)")
 
-            val content = svg.readText()
-            svg(content).forEach {
-                method.addStatement("path.${it}")
-            }
-
-            extractSvgViewBoxAttributes(content).forEach {
-                val width = it.split(" ")[2]
-                if (width.toInt() > 24) {
-                    val scale = 24.0 / width.toDouble()
-                    method.addStatement($$"path.scale($L, $L)", scale, scale)
+            val arrayListType = ParameterizedTypeName.get(ClassName.get(ArrayList::class.java), extendPath)
+            val block = CodeBlock.builder()
+            block.addStatement($$"$T paths = new $T()", listType, arrayListType)
+            shapes.forEachIndexed { index, shape ->
+                block.addStatement($$"$T path$L = new $T()", extendPath, index, extendPath)
+                if (shape.evenOdd) {
+                    block.addStatement($$"path$L.evenOdd()", index)
                 }
+                shape.commands.forEach {
+                    block.addStatement("path${index}.${it}")
+                }
+                if (!shape.fill) {
+                    block.addStatement("path${index}.setFillEnabled(false)")
+                }
+                if (shape.stroke) {
+                    val width = if (scaleStrokeWidth) shape.strokeWidth * scale else shape.strokeWidth
+                    block.addStatement($$"path$L.setStrokeWidth($L)", index, width)
+                    shape.strokeLineCap?.let { block.addStatement($$"path$L.setStrokeLineCap($S)", index, it) }
+                    shape.strokeLineJoin?.let { block.addStatement($$"path$L.setStrokeLineJoin($S)", index, it) }
+                }
+                if (scale != 1.0) {
+                    block.addStatement($$"path$L.scale($L, $L)", index, scale, scale)
+                }
+                if (translateY != 0.0) {
+                    block.addStatement($$"path$L.translate(0.0, $L)", index, translateY)
+                }
+                block.addStatement($$"paths.add(path$L)", index)
             }
+            block.addStatement("return paths")
 
-            method.addStatement("return path")
+            pathsMethod.addCode(block.build())
 
             val svgName = svg.nameWithoutExtension.replace("24", "")
             iconNames.add(svgName)
             val type = TypeSpec.classBuilder(svgName)
                 .addModifiers(Modifier.PUBLIC)
                 .superclass(pathIcon)
-                .addMethod(method.build())
+                .addMethod(pathMethod.build())
+                .addMethod(pathsMethod.build())
                 .build()
 
             val file = javaBuilder("${packageName}.${dir.name}", type).build()

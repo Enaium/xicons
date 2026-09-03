@@ -15,6 +15,8 @@ import javafx.scene.layout.*;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author Enaium
@@ -74,21 +76,18 @@ public class Main extends Application {
         Tab tab = new Tab(tabTitle);
         tab.setClosable(false);
 
-        ScrollPane scrollPane = new ScrollPane();
-        scrollPane.setFitToWidth(true);
-        scrollPane.setFitToHeight(true);
+        Label titleLabel = new Label(panelTitle);
+        titleLabel.setFont(Font.font(16));
+        titleLabel.setPadding(new Insets(0, 0, 10, 0));
 
         FlowPane iconPane = new FlowPane();
         iconPane.setHgap(10);
         iconPane.setVgap(10);
         iconPane.setPadding(new Insets(10));
         iconPane.setAlignment(Pos.TOP_LEFT);
-
-        Label titleLabel = new Label(panelTitle);
-        titleLabel.setFont(Font.font(16));
-        titleLabel.setPadding(new Insets(0, 0, 10, 0));
         iconPane.getChildren().add(titleLabel);
 
+        List<NamedNode> namedNodes = new ArrayList<>();
         try {
             for (Field field : iconContainer.getClass().getFields()) {
                 try {
@@ -100,8 +99,8 @@ public class Main extends Application {
                         iconBox.getChildren().add((javafx.scene.Node) icon);
                         Tooltip tooltip = new Tooltip(field.getName());
                         Tooltip.install(iconBox, tooltip);
-                        
                         iconPane.getChildren().add(iconBox);
+                        namedNodes.add(new NamedNode(field.getName(), iconBox));
                     }
                 } catch (Exception e) {
                     System.err.println("Error accessing field: " + field.getName() + " - " + e.getMessage());
@@ -110,11 +109,41 @@ public class Main extends Application {
         } catch (Exception e) {
             System.err.println("Error creating tab: " + tabTitle + " - " + e.getMessage());
         }
-        
+
+        TextField searchField = new TextField();
+        searchField.setPromptText("Search icons");
+        searchField.textProperty().addListener((observable, oldValue, newValue) -> {
+            String query = newValue == null ? "" : newValue.trim().toLowerCase();
+            iconPane.getChildren().clear();
+            iconPane.getChildren().add(titleLabel);
+            namedNodes.stream()
+                    .filter(node -> query.isEmpty() || node.name.toLowerCase().contains(query))
+                    .forEach(node -> iconPane.getChildren().add(node.node));
+        });
+
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setFitToWidth(true);
+        scrollPane.setFitToHeight(true);
         scrollPane.setContent(iconPane);
-        tab.setContent(scrollPane);
+
+        VBox root = new VBox(5);
+        root.setPadding(new Insets(5));
+        root.getChildren().addAll(searchField, scrollPane);
+        VBox.setVgrow(scrollPane, Priority.ALWAYS);
+
+        tab.setContent(root);
         
         return tab;
+    }
+
+    private static class NamedNode {
+        final String name;
+        final javafx.scene.Node node;
+
+        NamedNode(String name, javafx.scene.Node node) {
+            this.name = name;
+            this.node = node;
+        }
     }
 
     public static void main(String[] args) {

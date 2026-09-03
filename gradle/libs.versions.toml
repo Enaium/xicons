@@ -1,8 +1,8 @@
 [versions]
 javafx = "0.1.0"
-javapoet = "0.7.0"
-kotlinpoet = "2.2.0"
-flatlaf = "3.6.1"
+javapoet = "0.19.0"
+kotlinpoet = "2.3.0"
+flatlaf = "3.7.2"
 
 [libraries]
 javapoet = { module = "com.palantir.javapoet:javapoet", version.ref = "javapoet" }

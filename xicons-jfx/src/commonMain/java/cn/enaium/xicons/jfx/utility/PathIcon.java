@@ -27,6 +27,8 @@ import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
 
+import java.util.List;
+
 /**
  * @author Enaium
  */
@@ -34,6 +36,15 @@ public abstract class PathIcon extends Group {
     public int width = 24;
     public int height = 24;
     public Color color = Color.BLACK;
+
+    private ObservableList<Node> unmodifiableChildren;
+
+    {
+        // Build eagerly so the children list is populated before the Parent
+        // constructor caches its unmodifiableChildren view; otherwise
+        // getChildrenUnmodifiable() would observe an empty group.
+        build();
+    }
 
     public void setWidth(int width) {
         this.width = width;
@@ -47,22 +58,42 @@ public abstract class PathIcon extends Group {
         this.color = color;
     }
 
-    @Override
-    public ObservableList<Node> getChildren() {
-        ExtendPath path = new ExtendPath();
-        path.setStroke(null);
-        path.setFill(color);
-        path.setScaleX(width / 24.0);
-        path.setScaleY(height / 24.0);
-        final ExtendPath extendPath = path();
-        path.getElements().addAll(extendPath.getElements());
-        path.getTransforms().addAll(extendPath.getTransforms());
-        final ObservableList<Node> children = super.getChildren();
-        if (children.stream().noneMatch(node -> node instanceof ExtendPath)) {
+    private void build() {
+        ObservableList<Node> children = super.getChildren();
+        children.clear();
+        for (ExtendPath shape : paths()) {
+            ExtendPath path = new ExtendPath();
+            path.setScaleX(width / 24.0);
+            path.setScaleY(height / 24.0);
+            boolean stroked = shape.getStrokeWidth() > 0;
+            path.setFill(shape.isFillEnabled() ? color : null);
+            path.setStroke(stroked ? color : null);
+            path.setStrokeWidth(shape.getStrokeWidth());
+            path.setStrokeLineCap(shape.getStrokeLineCap());
+            path.setStrokeLineJoin(shape.getStrokeLineJoin());
+            path.setFillRule(shape.getFillRule());
+            path.getElements().addAll(shape.getElements());
+            path.getTransforms().addAll(shape.getTransforms());
             children.add(path);
         }
-        return children;
     }
 
-    public abstract ExtendPath path();
+    @Override
+    public ObservableList<Node> getChildren() {
+        return super.getChildren();
+    }
+
+    @Override
+    public ObservableList<Node> getChildrenUnmodifiable() {
+        if (unmodifiableChildren == null) {
+            unmodifiableChildren = javafx.collections.FXCollections.unmodifiableObservableList(getChildren());
+        }
+        return unmodifiableChildren;
+    }
+
+    public abstract List<ExtendPath> paths();
+
+    public ExtendPath path() {
+        return paths().get(0);
+    }
 }

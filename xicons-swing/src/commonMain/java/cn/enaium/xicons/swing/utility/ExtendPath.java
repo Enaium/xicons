@@ -22,6 +22,7 @@
 
 package cn.enaium.xicons.swing.utility;
 
+import java.awt.BasicStroke;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
@@ -30,6 +31,65 @@ import java.awt.geom.Point2D;
  * @author Enaium
  */
 public class ExtendPath extends Path2D.Double {
+    private boolean fillEnabled = true;
+    private double strokeWidth = 0;
+    private int strokeCap = BasicStroke.CAP_BUTT;
+    private int strokeJoin = BasicStroke.JOIN_MITER;
+
+    public void setFillEnabled(boolean fillEnabled) {
+        this.fillEnabled = fillEnabled;
+    }
+
+    public boolean isFillEnabled() {
+        return fillEnabled;
+    }
+
+    public void setStrokeWidth(double strokeWidth) {
+        this.strokeWidth = strokeWidth;
+    }
+
+    public double getStrokeWidth() {
+        return strokeWidth;
+    }
+
+    public void setStrokeLineCap(String cap) {
+        switch (cap) {
+            case "round":
+                this.strokeCap = BasicStroke.CAP_ROUND;
+                break;
+            case "square":
+                this.strokeCap = BasicStroke.CAP_SQUARE;
+                break;
+            default:
+                this.strokeCap = BasicStroke.CAP_BUTT;
+        }
+    }
+
+    public int getStrokeCap() {
+        return strokeCap;
+    }
+
+    public void setStrokeLineJoin(String join) {
+        switch (join) {
+            case "round":
+                this.strokeJoin = BasicStroke.JOIN_ROUND;
+                break;
+            case "bevel":
+                this.strokeJoin = BasicStroke.JOIN_BEVEL;
+                break;
+            default:
+                this.strokeJoin = BasicStroke.JOIN_MITER;
+        }
+    }
+
+    public int getStrokeJoin() {
+        return strokeJoin;
+    }
+
+    public void evenOdd() {
+        setWindingRule(Path2D.WIND_EVEN_ODD);
+    }
+
     public void horizontalLineTo(double x) {
         Point2D currentPoint = getCurrentPoint();
         if (currentPoint != null) {
@@ -170,6 +230,12 @@ public class ExtendPath extends Path2D.Double {
     public void scale(double x, double y) {
         AffineTransform transform = new AffineTransform();
         transform.scale(x, y);
+        transform(transform);
+    }
+
+    public void translate(double x, double y) {
+        AffineTransform transform = new AffineTransform();
+        transform.translate(x, y);
         transform(transform);
     }
 

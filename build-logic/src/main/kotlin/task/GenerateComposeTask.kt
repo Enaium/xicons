@@ -23,6 +23,7 @@
 package task
 
 import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.support.uppercaseFirstChar
@@ -51,6 +52,7 @@ open class GenerateComposeTask : DefaultTask() {
             }
 
             val generatedTypes = mutableSetOf<IconsType>()
+            val iconsByType = mutableMapOf<IconsType, MutableList<Pair<String, String>>>()
 
             dir.listFiles()?.filter { file ->
                 file.extension == "svg" && !listOf(
@@ -65,14 +67,16 @@ open class GenerateComposeTask : DefaultTask() {
                 val svgName = svg.nameWithoutExtension.replace("24", "")
                 iconNames.add(svgName)
 
-                IconsType.entries.find { svgName.endsWith(it.text) }?.also {
-                    generatedTypes.add(it)
-                } ?: generatedTypes.add(IconsType.DEFAULT)
+                val type = IconsType.entries.find { svgName.endsWith(it.text) } ?: IconsType.DEFAULT
+                generatedTypes.add(type)
+
+                val propertyName = svgName.removeSuffix(type.text)
+                iconsByType.getOrPut(type) { mutableListOf() }.add(propertyName to propertyName)
 
                 generateIconFile(dir, svg, svgName, sourceDir)
             }
 
-            generateIconsCollection(dir.name, sourceDir, generatedTypes)
+            generateIconsCollection(dir.name, sourceDir, generatedTypes, iconsByType)
         }
     }
 
@@ -85,9 +89,12 @@ open class GenerateComposeTask : DefaultTask() {
             .addImport("androidx.compose.ui.graphics", "SolidColor")
             .addImport("androidx.compose.ui.graphics.vector", "ImageVector", "group", "path")
             .addImport("androidx.compose.ui.unit", "dp")
+            .addImport("androidx.compose.ui.graphics", "PathFillType")
+            .addImport("androidx.compose.ui.graphics", "StrokeCap")
+            .addImport("androidx.compose.ui.graphics", "StrokeJoin")
 
-        val svg = IconsType.entries.map { iconsType -> iconsType.text }.find { suffix -> svgName.endsWith(suffix) }
-            ?.let { svgName.dropLast(it.length) } ?: svgName
+        val type = IconsType.entries.find { iconsType -> svgName.endsWith(iconsType.text) } ?: IconsType.DEFAULT
+        val svg = svgName.removeSuffix(type.text)
 
         val imageVector = ClassName("androidx.compose.ui.graphics.vector", "ImageVector")
         iconBuilder.addProperty(
@@ -95,9 +102,10 @@ open class GenerateComposeTask : DefaultTask() {
                 .receiver(
                     ClassName.bestGuess(
                         "cn.enaium.xicons.compose.${dir.name.uppercaseFirstChar()}Icons."
-                                + (IconsType.entries.find { svgName.endsWith(it.text) }?.text ?: IconsType.DEFAULT.text)
+                                + type.text
                     )
                 )
+                .addModifiers(KModifier.PUBLIC)
                 .getter(
                     FunSpec
                         .getterBuilder()
@@ -123,9 +131,9 @@ open class GenerateComposeTask : DefaultTask() {
         val width = viewBoxParts[2].toDouble()
         val height = viewBoxParts[3].toDouble()
 
-        val needsScaling = width > 24 || height > 24
-        val scaleX = if (needsScaling) 24.0f / width else 1.0f
-        val scaleY = if (needsScaling) 24.0f / height else 1.0f
+        val needsScaling = width > 24
+        val scale = if (needsScaling) 24.0 / width else 1.0
+        val translateY = (24.0 - height * scale) / 2.0
 
         val builder = CodeBlock.builder()
             .add("if (_${svgName} != null) {\n")
@@ -145,18 +153,34 @@ open class GenerateComposeTask : DefaultTask() {
             .indent()
 
         if (needsScaling) {
-            builder.add("group(scaleX = %Lf, scaleY = %Lf) {\n", scaleX, scaleY)
+            builder.add("group(scaleX = %Lf, scaleY = %Lf, translationY = %Lf) {\n", scale, scale, translateY)
             builder.indent()
         }
 
-        val svgCommands = svg(content, true)
-        builder.add("path(fill = SolidColor(androidx.compose.ui.graphics.Color.Black)) {\n")
-        builder.indent()
-        svgCommands.forEach { command ->
-            builder.addStatement(command)
+        svg(content, true).forEach { shape ->
+            val params = mutableListOf<String>()
+            params.add("fill = " + if (shape.fill) "SolidColor(androidx.compose.ui.graphics.Color.Black)" else "null")
+            params.add("stroke = " + if (shape.stroke) "SolidColor(androidx.compose.ui.graphics.Color.Black)" else "null")
+            params.add("strokeLineWidth = ${shape.strokeWidth}f")
+            params.add("strokeLineCap = StrokeCap.${(shape.strokeLineCap ?: "butt").replaceFirstChar { it.uppercase() }}")
+            params.add("strokeLineJoin = StrokeJoin.${(shape.strokeLineJoin ?: "miter").replaceFirstChar { it.uppercase() }}")
+            params.add("pathFillType = " + if (shape.evenOdd) "PathFillType.EvenOdd" else "PathFillType.NonZero")
+
+            builder.add("path(\n")
+            builder.indent()
+            params.forEachIndexed { index, param ->
+                builder.add("%L", param)
+                if (index < params.size - 1) builder.add(",\n") else builder.add("\n")
+            }
+            builder.unindent()
+            builder.add(") {\n")
+            builder.indent()
+            shape.commands.forEach { command ->
+                builder.addStatement(command)
+            }
+            builder.unindent()
+            builder.add("}\n")
         }
-        builder.unindent()
-        builder.add("}\n")
 
         if (needsScaling) {
             builder.unindent()
@@ -171,13 +195,37 @@ open class GenerateComposeTask : DefaultTask() {
     }
 
 
-    private fun generateIconsCollection(dirName: String, packageDir: File, generatedTypes: Set<IconsType>) {
+    private fun generateIconsCollection(
+        dirName: String,
+        packageDir: File,
+        generatedTypes: Set<IconsType>,
+        iconsByType: Map<IconsType, List<Pair<String, String>>>
+    ) {
         val collectionBuilder = kotlinBuilder("cn.enaium.xicons.compose", "${dirName.uppercaseFirstChar()}Icons")
+            .addImport("androidx.compose.ui.graphics.vector", "ImageVector")
 
         val mainObject = TypeSpec.objectBuilder("${dirName.uppercaseFirstChar()}Icons")
+            .addModifiers(KModifier.PUBLIC)
 
         generatedTypes.forEach { type ->
+            val icons = iconsByType[type].orEmpty()
             val subObject = TypeSpec.objectBuilder(type.text)
+                .addModifiers(KModifier.PUBLIC)
+            val allProperty = PropertySpec.builder("all", ClassName("kotlin.collections", "List").parameterizedBy(
+                ClassName("kotlin", "Pair").parameterizedBy(STRING, ClassName("androidx.compose.ui.graphics.vector", "ImageVector"))
+            ))
+                .addModifiers(KModifier.PUBLIC)
+            val listBuilder = CodeBlock.builder().add("listOf(\n")
+            listBuilder.indent()
+            icons.forEachIndexed { index, (name, _) ->
+                collectionBuilder.addImport("cn.enaium.xicons.compose.$dirName", name)
+                listBuilder.add("%S to %L", name, name)
+                if (index < icons.size - 1) listBuilder.add(",\n") else listBuilder.add("\n")
+            }
+            listBuilder.unindent()
+            listBuilder.add(")")
+            allProperty.initializer(listBuilder.build())
+            subObject.addProperty(allProperty.build())
             mainObject.addType(subObject.build())
         }
 

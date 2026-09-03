@@ -74,7 +74,7 @@ Add the following dependencies to your `pom.xml` file:
 <dependency>
     <groupId>cn.enaium.xicons</groupId>
     <artifactId>xicons-swing</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <classifier>fluent</classifier>
 </dependency>
 ```
@@ -84,7 +84,7 @@ Add the following dependencies to your `pom.xml` file:
 <dependency>
     <groupId>cn.enaium.xicons</groupId>
     <artifactId>xicons-jfx</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <classifier>fluent</classifier>
 </dependency>
 ```
@@ -95,24 +95,24 @@ Add the following dependencies to your `build.gradle` file:
 
 #### Swing Version
 ```gradle
-implementation 'cn.enaium.xicons:xicons-swing:1.0.0:fluent'
+implementation 'cn.enaium.xicons:xicons-swing:1.0.1:fluent'
 ```
 
 #### JavaFX Version
 ```gradle
-implementation 'cn.enaium.xicons:xicons-jfx:1.0.0:fluent'
+implementation 'cn.enaium.xicons:xicons-jfx:1.0.1:fluent'
 ```
 
 Or in Kotlin DSL (`build.gradle.kts`):
 
 #### Swing Version
 ```kotlin
-implementation("cn.enaium.xicons:xicons-swing:1.0.0:fluent")
+implementation("cn.enaium.xicons:xicons-swing:1.0.1:fluent")
 ```
 
 #### JavaFX Version
 ```kotlin
-implementation("cn.enaium.xicons:xicons-jfx:1.0.0:fluent")
+implementation("cn.enaium.xicons:xicons-jfx:1.0.1:fluent")
 ```
 
 ## 🧩 Kotlin Multiplatform Support
@@ -124,7 +124,7 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("cn.enaium.xicons:xicons-compose-fluent:1.0.0")
+                implementation("cn.enaium.xicons:xicons-compose-fluent:1.0.1")
             }
         }
     }

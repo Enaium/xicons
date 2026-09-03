@@ -39,6 +39,6 @@ open class GenerateJfxTask : DefaultTask() {
 
     @TaskAction
     fun execute() {
-        project.generateJava(EXTEND_PATH_CLASSNAME, PATH_ICON_CLASSNAME, "cn.enaium.xicons.jfx.icons")
+        project.generateJava(EXTEND_PATH_CLASSNAME, PATH_ICON_CLASSNAME, "cn.enaium.xicons.jfx.icons", false)
     }
 }

@@ -1,6 +1,11 @@
 plugins {
     java
+    application
     alias(libs.plugins.javafx)
+}
+
+application {
+    mainClass = "Main"
 }
 
 javafx {

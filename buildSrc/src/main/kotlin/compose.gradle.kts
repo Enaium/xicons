@@ -4,7 +4,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.multiplatform")
     id("org.jetbrains.compose")
-    id("com.android.library")
+    id("com.android.kotlin.multiplatform.library")
 }
 
 kotlin {
@@ -12,10 +12,10 @@ kotlin {
 
     explicitApi()
 
-    androidTarget {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
-        }
+    android {
+        namespace = "cn.enaium.xicons"
+        compileSdk = 37
+        minSdk = 21
     }
 
     jvm {
@@ -32,7 +32,6 @@ kotlin {
         browser()
     }
 
-    iosX64()
     iosArm64()
     iosSimulatorArm64()
 
@@ -48,27 +47,5 @@ kotlin {
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
         }
-    }
-}
-
-android {
-    namespace = "cn.enaium.xicons"
-    compileSdk = 36
-    defaultConfig {
-        minSdk = 21
-    }
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
-    }
-    buildTypes {
-        getByName("release") {
-            isMinifyEnabled = false
-        }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
     }
 }

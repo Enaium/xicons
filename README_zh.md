@@ -74,7 +74,7 @@ XIcons 是一个强大的 Java 图标库集合，提供了多个流行的图标�
 <dependency>
     <groupId>cn.enaium.xicons</groupId>
     <artifactId>xicons-swing</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <classifier>fluent</classifier>
 </dependency>
 ```
@@ -84,7 +84,7 @@ XIcons 是一个强大的 Java 图标库集合，提供了多个流行的图标�
 <dependency>
     <groupId>cn.enaium.xicons</groupId>
     <artifactId>xicons-jfx</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <classifier>fluent</classifier>
 </dependency>
 ```
@@ -95,24 +95,24 @@ XIcons 是一个强大的 Java 图标库集合，提供了多个流行的图标�
 
 #### Swing 版本
 ```gradle
-implementation 'cn.enaium.xicons:xicons-swing:1.0.0:fluent'
+implementation 'cn.enaium.xicons:xicons-swing:1.0.1:fluent'
 ```
 
 #### JavaFX 版本
 ```gradle
-implementation 'cn.enaium.xicons:xicons-jfx:1.0.0:fluent'
+implementation 'cn.enaium.xicons:xicons-jfx:1.0.1:fluent'
 ```
 
 或者在 Kotlin DSL (`build.gradle.kts`) 中：
 
 #### Swing 版本
 ```kotlin
-implementation("cn.enaium.xicons:xicons-swing:1.0.0:fluent")
+implementation("cn.enaium.xicons:xicons-swing:1.0.1:fluent")
 ```
 
 #### JavaFX 版本
 ```kotlin
-implementation("cn.enaium.xicons:xicons-jfx:1.0.0:fluent")
+implementation("cn.enaium.xicons:xicons-jfx:1.0.1:fluent")
 ```
 
 ## 🧩 Kotlin Multiplatform 支持
@@ -124,7 +124,7 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("cn.enaium.xicons:xicons-compose-fluent:1.0.0")
+                implementation("cn.enaium.xicons:xicons-compose-fluent:1.0.1")
             }
         }
     }

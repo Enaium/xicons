@@ -24,9 +24,48 @@ package cn.enaium.xicons.jfx.utility;
 
 import javafx.collections.ObservableList;
 import javafx.scene.shape.*;
-import javafx.scene.transform.Affine;
 
 public class ExtendPath extends Path {
+    private boolean fillEnabled = true;
+
+    public void setFillEnabled(boolean fillEnabled) {
+        this.fillEnabled = fillEnabled;
+    }
+
+    public boolean isFillEnabled() {
+        return fillEnabled;
+    }
+
+    public void setStrokeLineCap(String cap) {
+        switch (cap) {
+            case "round":
+                super.setStrokeLineCap(StrokeLineCap.ROUND);
+                break;
+            case "square":
+                super.setStrokeLineCap(StrokeLineCap.SQUARE);
+                break;
+            default:
+                super.setStrokeLineCap(StrokeLineCap.BUTT);
+        }
+    }
+
+    public void setStrokeLineJoin(String join) {
+        switch (join) {
+            case "round":
+                super.setStrokeLineJoin(StrokeLineJoin.ROUND);
+                break;
+            case "bevel":
+                super.setStrokeLineJoin(StrokeLineJoin.BEVEL);
+                break;
+            default:
+                super.setStrokeLineJoin(StrokeLineJoin.MITER);
+        }
+    }
+
+    public void evenOdd() {
+        setFillRule(FillRule.EVEN_ODD);
+    }
+
     public void moveTo(double x, double y) {
         getElements().add(new MoveTo(x, y));
     }
@@ -60,8 +99,14 @@ public class ExtendPath extends Path {
     }
 
     public void scale(double x, double y) {
-        Affine affine = new Affine();
+        javafx.scene.transform.Affine affine = new javafx.scene.transform.Affine();
         affine.appendScale(x, y);
+        getTransforms().add(affine);
+    }
+
+    public void translate(double x, double y) {
+        javafx.scene.transform.Affine affine = new javafx.scene.transform.Affine();
+        affine.appendTranslation(x, y);
         getTransforms().add(affine);
     }
 
