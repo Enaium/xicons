@@ -50,7 +50,6 @@ fun Project.generateJava(
 
 
     icons.toFile().listFiles().forEach { dir ->
-        val iconNames = mutableListOf<String>()
         val sourceDir = project.projectDir.resolve("build/generated/${dir.name}/java")
         if (sourceDir.exists()) {
             sourceDir.deleteRecursively()
@@ -99,6 +98,9 @@ fun Project.generateJava(
                 if (shape.evenOdd) {
                     block.addStatement($$"path$L.evenOdd()", index)
                 }
+                if (shape.fill && shape.fillOpacity < 1.0) {
+                    block.addStatement($$"path$L.setFillOpacity($L)", index, shape.fillOpacity)
+                }
                 shape.commands.forEach {
                     block.addStatement("path${index}.${it}")
                 }
@@ -124,7 +126,6 @@ fun Project.generateJava(
             pathsMethod.addCode(block.build())
 
             val svgName = svg.nameWithoutExtension.replace("24", "")
-            iconNames.add(svgName)
             val type = TypeSpec.classBuilder(svgName)
                 .addModifiers(Modifier.PUBLIC)
                 .superclass(pathIcon)
@@ -136,67 +137,10 @@ fun Project.generateJava(
             file.writeTo(sourceDir)
         }
 
-        val emptyTypes = mutableSetOf<IconsType>()
-
-        fun generateAllIcons(iconsType: IconsType) {
-            val type = TypeSpec.classBuilder("${dir.name.uppercaseFirstChar()}${iconsType.text}Icons")
-                .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-
-            iconNames.filter { name ->
-                fun suffix(iconsType: IconsType): Boolean {
-                    return name.endsWith(iconsType.text)
-                }
-                when (iconsType) {
-                    IconsType.DEFAULT -> IconsType.entries.filter { it != IconsType.DEFAULT }.all { !suffix(it) }
-
-                    IconsType.REGULAR,
-                    IconsType.FILLED,
-                    IconsType.OUTLINED,
-                    IconsType.ROUND,
-                    IconsType.SHARP,
-                    IconsType.TWOTONE -> suffix(iconsType)
-                }
-            }.forEach { name ->
-                val icon = ClassName.get("${packageName}.${dir.name}", name)
-                type.addField(
-                    FieldSpec.builder(icon, name.let { name ->
-                        val suffixes = IconsType.entries.filter { it != IconsType.DEFAULT }.map { it.text }
-                        suffixes.find { suffix -> name.endsWith(suffix) }?.let { name.dropLast(it.length) } ?: name
-                    }).addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-                        .initializer($$"new $T()", icon)
-                        .build()
-                )
-            }
-
-            type.build().takeIf { it.fieldSpecs().isNotEmpty() }?.also { type ->
-                val file = javaBuilder(packageName, type).build()
-
-                file.writeTo(sourceDir)
-            } ?: emptyTypes.add(iconsType)
-        }
-
-        IconsType.entries.forEach {
-            generateAllIcons(it)
-        }
-
-        val type = TypeSpec.classBuilder("${dir.name.uppercaseFirstChar()}Icons")
-            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-
-        IconsType.entries.filter { it !in emptyTypes }.forEach {
-            val iconType =
-                ClassName.get(packageName, "${dir.name.uppercaseFirstChar()}${it.text}Icons")
-            type.addField(
-                FieldSpec.builder(
-                    iconType,
-                    it.text
-                ).addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                    .initializer($$"new $T()", iconType)
-                    .build()
-            )
-        }
-        val file = javaBuilder(packageName, type.build()).build()
-
-        file.writeTo(sourceDir)
+        // No collection/factory classes are generated: each icon is its own
+        // standalone class (cn.enaium.xicons.swing.icons.<lib>.<Name>), so
+        // unused icons can be pruned by the linker/shrinker. Callers that
+        // need to enumerate icons scan the classpath at runtime.
     }
 }
 

@@ -130,6 +130,39 @@ kotlin {
     }
 }
 ```
+
+### ImGui (imgui-kmp)
+
+XIcons 提供基于 [imgui-kmp](https://github.com/Enaium/imgui-kmp) 的 KMP 图标模块，按图标库拆分，每个模块包含 `xicons-imgui-core`（渲染核心）与对应图标数据：
+
+```kotlin
+kotlin {
+    sourceSets {
+        val commonMain by getting {
+            dependencies {
+                implementation("cn.enaium.xicons:xicons-imgui-material:1.0.1")
+                implementation("cn.enaium.xicons:xicons-imgui-tabler:1.0.1")
+                implementation("cn.enaium.imgui:imgui-kmp:1.0.13")
+            }
+        }
+    }
+}
+```
+
+可用模块：`xicons-imgui-antd`、`xicons-imgui-carbon`、`xicons-imgui-fa`、`xicons-imgui-fluent`、`xicons-imgui-ionicons4`、`xicons-imgui-ionicons5`、`xicons-imgui-material`、`xicons-imgui-tabler`。
+
+```kotlin
+import cn.enaium.xicons.imgui.MaterialIcons
+import cn.enaium.xicons.imgui.drawCentered
+
+// 在 ImGui 窗口中绘制图标
+val dl = ImGui.getWindowDrawList()
+MaterialIcons.Filled.AnimalDog.drawCentered(dl, ImVec2(x, y), 32f, 0xFFCCCCCC.toInt())
+
+// 遍历某个风格的图标集合
+MaterialIcons.Filled.all.forEach { (name, icon) -> /* ... */ }
+```
+
 ## 💻 使用方法
 
 ```java

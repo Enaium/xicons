@@ -42,7 +42,8 @@ class SvgShape(
     val strokeWidth: Double,
     val strokeLineCap: String?,
     val strokeLineJoin: String?,
-    val evenOdd: Boolean
+    val evenOdd: Boolean,
+    val fillOpacity: Double = 1.0
 )
 
 /**
@@ -65,9 +66,11 @@ fun svg(content: String, f: Boolean = false, tintThreshold: Double = 0.5): List<
     val shapes = mutableListOf<SvgShapeInternal>()
     walk(document.documentElement, Style(), shapes, f)
 
-    val primary = shapes.filter { it.opacity >= tintThreshold }
-    val chosen = if (primary.isNotEmpty()) primary else shapes
-    return chosen.map { it.asPublic }
+    // Keep every shape: multi-tone icons (antd twotone, material twotone)
+    // carry secondary layers as low-opacity fills that must render as tints,
+    // not be dropped. Callers that want monochrome rendering can apply the
+    // threshold themselves.
+    return shapes.map { it.asPublic }
 }
 
 /**
@@ -95,7 +98,7 @@ private data class SvgShapeInternal(
 )
 
 private val SvgShapeInternal.asPublic: SvgShape
-    get() = SvgShape(commands, fill, stroke, strokeWidth, strokeLineCap, strokeLineJoin, evenOdd)
+    get() = SvgShape(commands, fill, stroke, strokeWidth, strokeLineCap, strokeLineJoin, evenOdd, opacity)
 
 private class Style(
     var fill: String? = null,
@@ -779,4 +782,431 @@ private class PathCursor(private val s: String) {
             else -> false
         }
     }
+}
+
+/**
+ * Flattens a list of path commands (as produced by [convertPathDataToJava])
+ * into closed polygon loops of (x, y) points. Curves are subdivided until
+ * flat; arcs are converted via their cubic approximation.
+ *
+ * [viewBoxSize] is the longest viewBox side; the flatness tolerance is
+ * derived from it (0.2% of the viewBox) so icons of any size get curves
+ * with similar visual smoothness.
+ *
+ * Returns a list of loops; each loop is a list of DoubleArray(x, y).
+ * A loop is closed if it ends with "close()".
+ *
+ * @author Enaium
+ */
+fun flattenCommands(commands: List<String>, viewBoxSize: Double = 24.0): List<List<DoubleArray>> {
+    val flatTolerance = viewBoxSize * 0.004
+    val loops = mutableListOf<List<DoubleArray>>()
+    var current = mutableListOf<DoubleArray>()
+    var cx = 0.0
+    var cy = 0.0
+    var sx = 0.0
+    var sy = 0.0
+    var lastC2X: Double? = null
+    var lastC2Y: Double? = null
+    var lastQX: Double? = null
+    var lastQY: Double? = null
+    var prev: String? = null
+
+    fun add(x: Double, y: Double) {
+        current.add(doubleArrayOf(x, y))
+    }
+
+    fun closeLoop() {
+        if (current.size >= 2) loops.add(current)
+        current = mutableListOf()
+        cx = sx; cy = sy
+        lastC2X = null; lastC2Y = null; lastQX = null; lastQY = null
+    }
+
+    val numRe = Regex("[-+]?\\d+(?:\\.\\d+)?")
+    for (cmd in commands) {
+        val name = cmd.substringBefore('(')
+        val args = numRe.findAll(cmd.substringAfter('(')).map { it.value.toDouble() }.toList()
+        when (name) {
+            "moveTo" -> {
+                if (current.size >= 2) loops.add(current)
+                current = mutableListOf()
+                cx = args[0]; cy = args[1]
+                sx = cx; sy = cy
+                add(cx, cy)
+                prev = "M"
+            }
+            "lineTo" -> {
+                cx = args[0]; cy = args[1]
+                add(cx, cy)
+                prev = "L"
+            }
+            "horizontalLineTo" -> {
+                cx = args[0]
+                add(cx, cy)
+                prev = "L"
+            }
+            "verticalLineTo" -> {
+                cy = args[0]
+                add(cx, cy)
+                prev = "L"
+            }
+            "curveTo" -> {
+                val x1 = args[0]; val y1 = args[1]
+                val x2 = args[2]; val y2 = args[3]
+                val x = args[4]; val y = args[5]
+                flattenCubic(cx, cy, x1, y1, x2, y2, x, y, flatTolerance) { px, py -> add(px, py) }
+                cx = x; cy = y
+                lastC2X = x2; lastC2Y = y2
+                lastQX = null; lastQY = null
+                prev = "C"
+            }
+            "quadTo" -> {
+                val x1 = args[0]; val y1 = args[1]
+                val x = args[2]; val y = args[3]
+                flattenQuad(cx, cy, x1, y1, x, y, flatTolerance) { px, py -> add(px, py) }
+                cx = x; cy = y
+                lastQX = x1; lastQY = y1
+                lastC2X = null; lastC2Y = null
+                prev = "Q"
+            }
+            "arcTo" -> {
+                // arcTo(rx, ry, rot, large, sweep, x, y) — true/false flags are
+                // not captured by numRe, so args are [rx, ry, rot, x, y].
+                val rx = args[0]; val ry = args[1]; val rot = args[2]
+                val flags = Regex("(true|false)").findAll(cmd).map { it.value }.toList()
+                val large = flags.getOrElse(0) { "false" } == "true"
+                val sweep = flags.getOrElse(1) { "false" } == "true"
+                val x = args[3]; val y = args[4]
+                flattenArc(cx, cy, rx, ry, rot, large, sweep, x, y, flatTolerance) { px, py -> add(px, py) }
+                cx = x; cy = y
+                lastC2X = null; lastC2Y = null; lastQX = null; lastQY = null
+                prev = "A"
+            }
+            "close" -> {
+                closeLoop()
+                prev = "Z"
+            }
+        }
+    }
+    if (current.size >= 2) loops.add(current)
+    return loops.map { simplifyLoop(it) }
+}
+
+/** Removes points that are nearly collinear with their neighbours. */
+private fun simplifyLoop(loop: List<DoubleArray>): List<DoubleArray> {
+    if (loop.size < 4) return loop
+    val out = ArrayList<DoubleArray>(loop.size)
+    var prev = loop[0]
+    out.add(prev)
+    for (i in 1 until loop.size - 1) {
+        val p = loop[i]
+        val next = loop[i + 1]
+        // Area of triangle (prev, p, next); skip p if below threshold.
+        val area = Math.abs((p[0] - prev[0]) * (next[1] - prev[1]) - (p[1] - prev[1]) * (next[0] - prev[0]))
+        if (area > 0.01) {
+            out.add(p)
+            prev = p
+        }
+    }
+    out.add(loop[loop.size - 1])
+    return out
+}
+
+private fun flattenCubic(
+    x0: Double, y0: Double, x1: Double, y1: Double,
+    x2: Double, y2: Double, x3: Double, y3: Double,
+    flatTolerance: Double,
+    emit: (Double, Double) -> Unit,
+) {
+    // Explicit-parameter subdivision (no local-function capture; the JVM
+    // backend misplaces captured doubles, making flatEnough always true).
+    val stack = ArrayDeque<DoubleArray>()
+    stack.add(doubleArrayOf(x0, y0, x1, y1, x2, y2, x3, y3, 0.0))
+    while (stack.isNotEmpty()) {
+        val s = stack.removeLast()
+        val ax = s[0]; val ay = s[1]
+        val bx = s[2]; val by = s[3]
+        val cx = s[4]; val cy = s[5]
+        val dx = s[6]; val dy = s[7]
+        val depth = s[8].toInt()
+
+        val len = Math.hypot(dx - ax, dy - ay)
+        val flat = len < 1e-4 ||
+            (Math.abs((bx - dx) * (dy - ay) - (by - dy) * (dx - ax)) +
+                Math.abs((cx - dx) * (dy - ay) - (cy - dy) * (dx - ax))) / len < flatTolerance
+        if (depth > 12 || flat) {
+            emit(dx, dy)
+            continue
+        }
+        val mx01 = (ax + bx) / 2; val my01 = (ay + by) / 2
+        val mx12 = (bx + cx) / 2; val my12 = (by + cy) / 2
+        val mx23 = (cx + dx) / 2; val my23 = (cy + dy) / 2
+        val mx012 = (mx01 + mx12) / 2; val my012 = (my01 + my12) / 2
+        val mx123 = (mx12 + mx23) / 2; val my123 = (my12 + my23) / 2
+        val mx = (mx012 + mx123) / 2; val my = (my012 + my123) / 2
+        stack.add(doubleArrayOf(mx, my, mx123, my123, mx23, my23, dx, dy, (depth + 1).toDouble()))
+        stack.add(doubleArrayOf(ax, ay, mx01, my01, mx012, my012, mx, my, (depth + 1).toDouble()))
+    }
+}
+
+private fun flattenQuad(
+    x0: Double, y0: Double, x1: Double, y1: Double,
+    x2: Double, y2: Double,
+    flatTolerance: Double,
+    emit: (Double, Double) -> Unit,
+) {
+    val stack = ArrayDeque<DoubleArray>()
+    stack.add(doubleArrayOf(x0, y0, x1, y1, x2, y2, 0.0))
+    while (stack.isNotEmpty()) {
+        val s = stack.removeLast()
+        val ax = s[0]; val ay = s[1]
+        val bx = s[2]; val by = s[3]
+        val cx = s[4]; val cy = s[5]
+        val depth = s[6].toInt()
+
+        val len = Math.hypot(cx - ax, cy - ay)
+        val flat = len < 1e-4 ||
+            Math.abs((bx - cx) * (cy - ay) - (by - cy) * (cx - ax)) / len < flatTolerance
+        if (depth > 12 || flat) {
+            emit(cx, cy)
+            continue
+        }
+        val mx01 = (ax + bx) / 2; val my01 = (ay + by) / 2
+        val mx12 = (bx + cx) / 2; val my12 = (by + cy) / 2
+        val mx = (mx01 + mx12) / 2; val my = (my01 + my12) / 2
+        stack.add(doubleArrayOf(mx, my, mx12, my12, cx, cy, (depth + 1).toDouble()))
+        stack.add(doubleArrayOf(ax, ay, mx01, my01, mx, my, (depth + 1).toDouble()))
+    }
+}
+
+private fun flattenArc(
+    x0: Double, y0: Double,
+    rxIn: Double, ryIn: Double, rotDeg: Double,
+    largeArc: Boolean, sweep: Boolean,
+    x: Double, y: Double,
+    flatTolerance: Double,
+    emit: (Double, Double) -> Unit,
+) {
+    var rx = Math.abs(rxIn)
+    var ry = Math.abs(ryIn)
+    if (rx == 0.0 || ry == 0.0 || (x0 == x && y0 == y)) {
+        emit(x, y)
+        return
+    }
+    val phi = Math.toRadians(rotDeg)
+    val cosPhi = Math.cos(phi)
+    val sinPhi = Math.sin(phi)
+
+    val dx2 = (x0 - x) / 2.0
+    val dy2 = (y0 - y) / 2.0
+    val x1p = cosPhi * dx2 + sinPhi * dy2
+    val y1p = -sinPhi * dx2 + cosPhi * dy2
+
+    val lambda = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry)
+    if (lambda > 1.0) {
+        val s = Math.sqrt(lambda)
+        rx *= s
+        ry *= s
+    }
+
+    val rx2 = rx * rx
+    val ry2 = ry * ry
+    val x1p2 = x1p * x1p
+    val y1p2 = y1p * y1p
+    val numerator = rx2 * ry2 - rx2 * y1p2 - ry2 * x1p2
+    val denom = rx2 * y1p2 + ry2 * x1p2
+    val radicand = if (denom == 0.0) 0.0 else numerator / denom
+    val coef = if (radicand < 0.0) 0.0 else Math.sqrt(radicand)
+    val sign = if (largeArc == sweep) -1.0 else 1.0
+    val cxp = sign * coef * (rx * y1p) / ry
+    val cyp = sign * coef * (-ry * x1p) / rx
+
+    val cx = cosPhi * cxp - sinPhi * cyp + (x0 + x) / 2.0
+    val cy = sinPhi * cxp + cosPhi * cyp + (y0 + y) / 2.0
+
+    val ux = (x1p - cxp) / rx
+    val uy = (y1p - cyp) / ry
+    val vx = (-x1p - cxp) / rx
+    val vy = (-y1p - cyp) / ry
+
+    var theta1 = Math.atan2(uy, ux)
+    var dTheta = Math.atan2(vy, vx) - theta1
+    if (!sweep && dTheta > 0) dTheta -= 2 * Math.PI
+    if (sweep && dTheta < 0) dTheta += 2 * Math.PI
+
+    val segments = Math.max(1, Math.ceil(Math.abs(dTheta) / (Math.PI / 2.0)).toInt())
+    val delta = dTheta / segments
+    val t = (4.0 / 3.0) * Math.tan(delta / 4.0)
+
+    var start = theta1
+    for (i in 0 until segments) {
+        val end = start + delta
+        val sinStart = Math.sin(start); val cosStart = Math.cos(start)
+        val sinEnd = Math.sin(end); val cosEnd = Math.cos(end)
+
+        val p0x = cx + (cosPhi * rx * cosStart - sinPhi * ry * sinStart)
+        val p0y = cy + (sinPhi * rx * cosStart + cosPhi * ry * sinStart)
+        val p3x = cx + (cosPhi * rx * cosEnd - sinPhi * ry * sinEnd)
+        val p3y = cy + (sinPhi * rx * cosEnd + cosPhi * ry * sinEnd)
+
+        val dp0x = -cosPhi * rx * sinStart - sinPhi * ry * cosStart
+        val dp0y = -sinPhi * rx * sinStart + cosPhi * ry * cosStart
+        val dp3x = -cosPhi * rx * sinEnd - sinPhi * ry * cosEnd
+        val dp3y = -sinPhi * rx * sinEnd + cosPhi * ry * cosEnd
+
+        val c1x = p0x + t * dp0x
+        val c1y = p0y + t * dp0y
+        val c2x = p3x - t * dp3x
+        val c2y = p3y - t * dp3y
+
+        flattenCubic(p0x, p0y, c1x, c1y, c2x, c2y, p3x, p3y, flatTolerance, emit)
+        start = end
+    }
+}
+
+// ---------------------------------------------------------------------------
+// earcut-based tessellation for filled contours.
+// The JVM build logic runs the reference earcut triangulation (mapbox/earcut)
+// on each outer contour plus its holes, producing clean contour-aligned
+// triangles: no pixel grid, no scanline banding, far fewer vertices than
+// rasterization (important: ImGui draw lists still use 16-bit indices unless
+// the renderer advertises VtxOffset support).
+// ---------------------------------------------------------------------------
+
+/**
+ * Tessellates filled contour loops into triangles with earcut. Contours are
+ * grouped by containment (outer ring + its direct holes; nested islands are
+ * their own groups), matching the SVG even-odd fill rule. Returns a flat
+ * list x0,y0, x1,y1, x2,y2, ... in viewBox coordinates.
+ *
+ * @param loops each contour as flat x,y pairs (closed or open)
+ * @param bounds unused, kept for API compatibility
+ */
+fun tessellateContours(loops: List<List<DoubleArray>>, bounds: DoubleArray, width: Int, height: Int): List<DoubleArray> {
+    if (loops.isEmpty()) return emptyList()
+
+    // Remove degenerate contours and closing duplicates.
+    val cleaned = ArrayList<List<DoubleArray>>(loops.size)
+    for (loop in loops) {
+        if (loop.size < 3) continue
+        val pts = if (loop.size > 1 && loop[0][0] == loop[loop.size - 1][0] &&
+            loop[0][1] == loop[loop.size - 1][1]
+        ) {
+            loop.subList(0, loop.size - 1)
+        } else loop
+        if (pts.size >= 3) cleaned.add(pts)
+    }
+    if (cleaned.isEmpty()) return emptyList()
+
+    // Group contours by containment depth with the SVG nonzero rule: a
+    // contour is a hole only when its winding is opposite the ring that
+    // contains it. Same-winding inner contours (e.g. a separate filled
+    // symbol inside an outer frame) are independent solids and must be
+    // triangulated on their own, not carved out.
+    val groups = ArrayList<List<List<DoubleArray>>>()
+    val used = BooleanArray(cleaned.size)
+    for (i in cleaned.indices) {
+        if (used[i]) continue
+        val outer = cleaned[i]
+        val outerWinding = contourWinding(outer)
+        val group = ArrayList<List<DoubleArray>>()
+        group.add(outer)
+        for (j in cleaned.indices) {
+            if (i == j || used[j]) continue
+            val c = cleaned[j]
+            // j is a direct hole of i if it is fully inside i, winds the
+            // opposite way (signed area product negative), and no other
+            // unused contour sits between them.
+            if (contourInside(c, outer) && contourWinding(c) * outerWinding < 0 &&
+                !hasContourBetween(j, i, cleaned, used)
+            ) {
+                group.add(c)
+                used[j] = true
+            }
+        }
+        used[i] = true
+        groups.add(group)
+    }
+
+    val tris = ArrayList<DoubleArray>()
+    for (group in groups) {
+        val outer = group[0]
+        var data = DoubleArray(outer.size * 2)
+        for (k in outer.indices) {
+            data[k * 2] = outer[k][0]
+            data[k * 2 + 1] = outer[k][1]
+        }
+        val holeIndices = IntArray(group.size - 1)
+        var offset = outer.size
+        for (h in 1 until group.size) {
+            holeIndices[h - 1] = offset
+            val hole = group[h]
+            val extra = DoubleArray(hole.size * 2)
+            for (k in hole.indices) {
+                extra[k * 2] = hole[k][0]
+                extra[k * 2 + 1] = hole[k][1]
+            }
+            val tmp = DoubleArray(data.size + extra.size)
+            System.arraycopy(data, 0, tmp, 0, data.size)
+            System.arraycopy(extra, 0, tmp, data.size, extra.size)
+            data = tmp
+            offset += hole.size
+        }
+        val indices = earcut.Earcut.earcut(data, holeIndices)
+        for (k in 0 until indices.size step 3) {
+            val i0 = indices[k] * 2
+            val i1 = indices[k + 1] * 2
+            val i2 = indices[k + 2] * 2
+            tris.add(doubleArrayOf(data[i0], data[i0 + 1], data[i1], data[i1 + 1], data[i2], data[i2 + 1]))
+        }
+    }
+    return tris
+}
+
+/** True if [inner] lies fully inside [outer] (point-in-polygon on all vertices). */
+private fun contourInside(inner: List<DoubleArray>, outer: List<DoubleArray>): Boolean {
+    for (p in inner) {
+        if (!pointInPolygon(p[0], p[1], outer)) return false
+    }
+    return true
+}
+
+/** Signed area of a contour: positive = counter-clockwise, negative = clockwise. */
+private fun contourWinding(loop: List<DoubleArray>): Double {
+    var sum = 0.0
+    for (i in loop.indices) {
+        val p = loop[i]
+        val q = loop[(i + 1) % loop.size]
+        sum += (q[0] - p[0]) * (q[1] + p[1])
+    }
+    return sum
+}
+
+/** True if any unused contour strictly between [outerIdx] and [candidate] contains the candidate. */
+private fun hasContourBetween(
+    candidate: Int,
+    outerIdx: Int,
+    loops: List<List<DoubleArray>>,
+    used: BooleanArray,
+): Boolean {
+    for (k in loops.indices) {
+        if (k == candidate || k == outerIdx || used[k]) continue
+        if (contourInside(loops[candidate], loops[k])) return true
+    }
+    return false
+}
+
+private fun pointInPolygon(x: Double, y: Double, poly: List<DoubleArray>): Boolean {
+    var inside = false
+    var j = poly.size - 1
+    for (i in poly.indices) {
+        val xi = poly[i][0]; val yi = poly[i][1]
+        val xj = poly[j][0]; val yj = poly[j][1]
+        if ((yi > y) != (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) {
+            inside = !inside
+        }
+        j = i
+    }
+    return inside
 }

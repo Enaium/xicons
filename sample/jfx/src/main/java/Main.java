@@ -1,27 +1,27 @@
-import cn.enaium.xicons.jfx.icons.FluentIcons;
-import cn.enaium.xicons.jfx.icons.AntdIcons;
-import cn.enaium.xicons.jfx.icons.CarbonIcons;
-import cn.enaium.xicons.jfx.icons.FaIcons;
-import cn.enaium.xicons.jfx.icons.Ionicons4Icons;
-import cn.enaium.xicons.jfx.icons.Ionicons5Icons;
-import cn.enaium.xicons.jfx.icons.MaterialIcons;
-import cn.enaium.xicons.jfx.icons.TablerIcons;
+import cn.enaium.xicons.jfx.utility.ExtendPath;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
-import java.lang.reflect.Field;
+import java.io.File;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.jar.JarFile;
 
 /**
  * @author Enaium
  */
 public class Main extends Application {
+    private static final String[] LIBS = {"antd", "carbon", "fa", "fluent", "ionicons4", "ionicons5", "material", "tabler"};
+    private static final String[] STYLES = {"Filled", "Outlined", "Twotone", "Default", "Regular", "Sharp", "Round"};
+
     @Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle("XIcons JFX");
@@ -29,50 +29,65 @@ public class Main extends Application {
         primaryStage.setHeight(700);
 
         TabPane tabPane = new TabPane();
-        
-        // Fluent
-        tabPane.getTabs().add(createIconTab("Fluent Regular", FluentIcons.Regular, "Fluent Regular Icons"));
-        tabPane.getTabs().add(createIconTab("Fluent Filled", FluentIcons.Filled, "Fluent Filled Icons"));
-        
-        // Antd
-        tabPane.getTabs().add(createIconTab("Antd Filled", AntdIcons.Filled, "Antd Filled Icons"));
-        tabPane.getTabs().add(createIconTab("Antd Outlined", AntdIcons.Outlined, "Antd Outlined Icons"));
-        tabPane.getTabs().add(createIconTab("Antd Twotone", AntdIcons.Twotone, "Antd Twotone Icons"));
-        
-        // Carbon
-        tabPane.getTabs().add(createIconTab("Carbon Default", CarbonIcons.Default, "Carbon Default Icons"));
-        tabPane.getTabs().add(createIconTab("Carbon Filled", CarbonIcons.Filled, "Carbon Filled Icons"));
-        tabPane.getTabs().add(createIconTab("Carbon Round", CarbonIcons.Round, "Carbon Round Icons"));
-        
-        // Fa
-        tabPane.getTabs().add(createIconTab("Fa Default", FaIcons.Default, "Fa Default Icons"));
-        tabPane.getTabs().add(createIconTab("Fa Regular", FaIcons.Regular, "Fa Regular Icons"));
-        
-        // Ionicons4
-        tabPane.getTabs().add(createIconTab("Ionicons4 Default", Ionicons4Icons.Default, "Ionicons4 Default Icons"));
-        
-        // Ionicons5
-        tabPane.getTabs().add(createIconTab("Ionicons5 Default", Ionicons5Icons.Default, "Ionicons5 Default Icons"));
-        tabPane.getTabs().add(createIconTab("Ionicons5 Sharp", Ionicons5Icons.Sharp, "Ionicons5 Sharp Icons"));
-        
-        // Material
-        tabPane.getTabs().add(createIconTab("Material Filled", MaterialIcons.Filled, "Material Filled Icons"));
-        tabPane.getTabs().add(createIconTab("Material Outlined", MaterialIcons.Outlined, "Material Outlined Icons"));
-        tabPane.getTabs().add(createIconTab("Material Round", MaterialIcons.Round, "Material Round Icons"));
-        tabPane.getTabs().add(createIconTab("Material Sharp", MaterialIcons.Sharp, "Material Sharp Icons"));
-        tabPane.getTabs().add(createIconTab("Material Twotone", MaterialIcons.Twotone, "Material Twotone Icons"));
-        
-        // Tabler
-        tabPane.getTabs().add(createIconTab("Tabler Default", TablerIcons.Default, "Tabler Default Icons"));
-        tabPane.getTabs().add(createIconTab("Tabler Filled", TablerIcons.Filled, "Tabler Filled Icons"));
-        tabPane.getTabs().add(createIconTab("Tabler Sharp", TablerIcons.Sharp, "Tabler Sharp Icons"));
-        
+        for (String lib : LIBS) {
+            Map<String, List<Class<?>>> byStyle = scanLib(lib);
+            byStyle.forEach((style, classes) ->
+                    tabPane.getTabs().add(createIconTab(cap(lib) + " " + style, classes, cap(lib) + " " + style + " Icons")));
+        }
+
         Scene scene = new Scene(tabPane);
         primaryStage.setScene(scene);
         primaryStage.show();
     }
 
-    private Tab createIconTab(String tabTitle, Object iconContainer, String panelTitle) {
+    private static Map<String, List<Class<?>>> scanLib(String lib) {
+        Map<String, List<Class<?>>> byStyle = new LinkedHashMap<>();
+        String pkg = "cn/enaium/xicons/jfx/icons/" + lib;
+        String cp = System.getProperty("java.class.path");
+        for (String entry : cp.split(File.pathSeparator)) {
+            File f = new File(entry);
+            if (f.isDirectory()) {
+                File dir = new File(f, pkg);
+                File[] files = dir.listFiles((d, name) -> name.endsWith(".class"));
+                if (files != null) {
+                    for (File cf : files) {
+                        addIconClass(cf.getName().replace(".class", ""), lib, byStyle);
+                    }
+                }
+            } else if (f.isFile() && f.getName().endsWith(".jar")) {
+                try (JarFile jar = new JarFile(f)) {
+                    jar.stream()
+                            .filter(e -> e.getName().startsWith(pkg + "/") && e.getName().endsWith(".class")
+                                    && !e.getName().contains("$"))
+                            .forEach(e -> {
+                                String simple = e.getName().substring(e.getName().lastIndexOf('/') + 1).replace(".class", "");
+                                addIconClass(simple, lib, byStyle);
+                            });
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        return byStyle;
+    }
+
+    private static void addIconClass(String simple, String lib, Map<String, List<Class<?>>> byStyle) {
+        String style = "Default";
+        for (String s : STYLES) {
+            if (simple.endsWith(s)) {
+                style = s;
+                break;
+            }
+        }
+        try {
+            Class<?> c = Class.forName("cn.enaium.xicons.jfx.icons." + lib + "." + simple);
+            if (javafx.scene.Node.class.isAssignableFrom(c)) {
+                byStyle.computeIfAbsent(style, k -> new ArrayList<>()).add(c);
+            }
+        } catch (ClassNotFoundException ignored) {
+        }
+    }
+
+    private Tab createIconTab(String tabTitle, List<Class<?>> iconClasses, String panelTitle) {
         Tab tab = new Tab(tabTitle);
         tab.setClosable(false);
 
@@ -88,26 +103,19 @@ public class Main extends Application {
         iconPane.getChildren().add(titleLabel);
 
         List<NamedNode> namedNodes = new ArrayList<>();
-        try {
-            for (Field field : iconContainer.getClass().getFields()) {
-                try {
-                    Object icon = field.get(iconContainer);
-                    if (icon instanceof javafx.scene.Node) {
-                        VBox iconBox = new VBox(5);
-                        iconBox.setAlignment(Pos.CENTER);
-                        iconBox.setPadding(new Insets(5));
-                        iconBox.getChildren().add((javafx.scene.Node) icon);
-                        Tooltip tooltip = new Tooltip(field.getName());
-                        Tooltip.install(iconBox, tooltip);
-                        iconPane.getChildren().add(iconBox);
-                        namedNodes.add(new NamedNode(field.getName(), iconBox));
-                    }
-                } catch (Exception e) {
-                    System.err.println("Error accessing field: " + field.getName() + " - " + e.getMessage());
-                }
+        for (Class<?> c : iconClasses) {
+            try {
+                Node icon = (Node) c.getDeclaredConstructor().newInstance();
+                VBox iconBox = new VBox(5);
+                iconBox.setAlignment(Pos.CENTER);
+                iconBox.setPadding(new Insets(5));
+                iconBox.getChildren().add(icon);
+                Tooltip tooltip = new Tooltip(c.getSimpleName());
+                Tooltip.install(iconBox, tooltip);
+                iconPane.getChildren().add(iconBox);
+                namedNodes.add(new NamedNode(c.getSimpleName(), iconBox));
+            } catch (Exception ignored) {
             }
-        } catch (Exception e) {
-            System.err.println("Error creating tab: " + tabTitle + " - " + e.getMessage());
         }
 
         TextField searchField = new TextField();
@@ -132,18 +140,22 @@ public class Main extends Application {
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
 
         tab.setContent(root);
-        
+
         return tab;
     }
 
     private static class NamedNode {
         final String name;
-        final javafx.scene.Node node;
+        final VBox node;
 
-        NamedNode(String name, javafx.scene.Node node) {
+        NamedNode(String name, VBox node) {
             this.name = name;
             this.node = node;
         }
+    }
+
+    private static String cap(String s) {
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
     public static void main(String[] args) {

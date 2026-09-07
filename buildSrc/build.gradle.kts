@@ -15,9 +15,9 @@ repositories {
 }
 
 dependencies {
-    api("com.vanniktech:gradle-maven-publish-plugin:${property("maven")}")
-    api("org.jetbrains.kotlin.multiplatform:org.jetbrains.kotlin.multiplatform.gradle.plugin:${property("kotlin")}")
-    api("org.jetbrains.kotlin.plugin.compose:org.jetbrains.kotlin.plugin.compose.gradle.plugin:${property("kotlin")}")
-    api("org.jetbrains.compose:org.jetbrains.compose.gradle.plugin:${property("compose")}")
-    api("com.android.tools.build:gradle:${property("android")}")
+    api(libs.maven.publish.plugin)
+    api(libs.kotlin.multiplatform.plugin)
+    api(libs.kotlin.compose.plugin)
+    api(libs.compose.plugin)
+    api(libs.android.kmp.plugin)
 }

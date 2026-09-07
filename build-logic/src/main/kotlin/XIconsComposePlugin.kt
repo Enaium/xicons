@@ -31,7 +31,7 @@ import task.SyncXIconsTask
 class XIconsComposePlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val sync = project.tasks.register("syncXIcons", SyncXIconsTask::class.java)
-        project.tasks.register("generateCompose", GenerateComposeTask::class.java) {
+        project.tasks.register("generateXiconsCompose", GenerateComposeTask::class.java) {
             group = "xicons"
             dependsOn(sync)
         }

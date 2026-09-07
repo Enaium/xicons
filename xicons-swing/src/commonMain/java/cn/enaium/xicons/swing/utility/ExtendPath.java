@@ -32,6 +32,7 @@ import java.awt.geom.Point2D;
  */
 public class ExtendPath extends Path2D.Double {
     private boolean fillEnabled = true;
+    private double fillOpacity = 1.0;
     private double strokeWidth = 0;
     private int strokeCap = BasicStroke.CAP_BUTT;
     private int strokeJoin = BasicStroke.JOIN_MITER;
@@ -42,6 +43,14 @@ public class ExtendPath extends Path2D.Double {
 
     public boolean isFillEnabled() {
         return fillEnabled;
+    }
+
+    public void setFillOpacity(double fillOpacity) {
+        this.fillOpacity = fillOpacity;
+    }
+
+    public double getFillOpacity() {
+        return fillOpacity;
     }
 
     public void setStrokeWidth(double strokeWidth) {

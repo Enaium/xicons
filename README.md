@@ -74,7 +74,7 @@ Add the following dependencies to your `pom.xml` file:
 <dependency>
     <groupId>cn.enaium.xicons</groupId>
     <artifactId>xicons-swing</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <classifier>fluent</classifier>
 </dependency>
 ```
@@ -84,7 +84,7 @@ Add the following dependencies to your `pom.xml` file:
 <dependency>
     <groupId>cn.enaium.xicons</groupId>
     <artifactId>xicons-jfx</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <classifier>fluent</classifier>
 </dependency>
 ```
@@ -95,24 +95,24 @@ Add the following dependencies to your `build.gradle` file:
 
 #### Swing Version
 ```gradle
-implementation 'cn.enaium.xicons:xicons-swing:1.0.1:fluent'
+implementation 'cn.enaium.xicons:xicons-swing:1.0.2:fluent'
 ```
 
 #### JavaFX Version
 ```gradle
-implementation 'cn.enaium.xicons:xicons-jfx:1.0.1:fluent'
+implementation 'cn.enaium.xicons:xicons-jfx:1.0.2:fluent'
 ```
 
 Or in Kotlin DSL (`build.gradle.kts`):
 
 #### Swing Version
 ```kotlin
-implementation("cn.enaium.xicons:xicons-swing:1.0.1:fluent")
+implementation("cn.enaium.xicons:xicons-swing:1.0.2:fluent")
 ```
 
 #### JavaFX Version
 ```kotlin
-implementation("cn.enaium.xicons:xicons-jfx:1.0.1:fluent")
+implementation("cn.enaium.xicons:xicons-jfx:1.0.2:fluent")
 ```
 
 ## 🧩 Kotlin Multiplatform Support
@@ -124,11 +124,47 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("cn.enaium.xicons:xicons-compose-fluent:1.0.1")
+                implementation("cn.enaium.xicons:xicons-compose-fluent:1.0.2")
             }
         }
     }
 }
+```
+
+### ImGui (imgui-kmp)
+
+XIcons provides KMP icon modules built on [imgui-kmp](https://github.com/Enaium/imgui-kmp), split per icon library. Each library module depends on `xicons-imgui-core` (the rendering core):
+
+```kotlin
+kotlin {
+    sourceSets {
+        val commonMain by getting {
+            dependencies {
+                implementation("cn.enaium.xicons:xicons-imgui-material:1.0.2")
+                implementation("cn.enaium.xicons:xicons-imgui-tabler:1.0.2")
+                implementation("cn.enaium.imgui:imgui-kmp:1.0.13")
+            }
+        }
+    }
+}
+```
+
+Available modules: `xicons-imgui-antd`, `xicons-imgui-carbon`, `xicons-imgui-fa`, `xicons-imgui-fluent`, `xicons-imgui-ionicons4`, `xicons-imgui-ionicons5`, `xicons-imgui-material`, `xicons-imgui-tabler`.
+
+```kotlin
+import cn.enaium.xicons.imgui.icons.fluent.AnimalDogFilled
+import cn.enaium.xicons.imgui.icons.fluent.AnimalDog
+
+// Draw at current ImGui cursor (like ImGui.text) — no position/size needed
+AnimalDogFilled.draw()
+
+// Draw at a specific position
+AnimalDog.draw(ImVec2(x, y), 32f)
+
+// Draw centered
+AnimalDog.drawCentered(ImVec2(cx, cy), 32f)
+
+// Each icon is a top-level val — only used icons survive shrinking
 ```
 
 ## 💻 Usage

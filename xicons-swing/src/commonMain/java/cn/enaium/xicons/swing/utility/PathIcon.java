@@ -55,6 +55,14 @@ public abstract class PathIcon implements Icon {
         g2d.scale(width / 24.0, height / 24.0);
         g2d.setColor(color);
         for (ExtendPath path : paths()) {
+            // Tint layers (twotone backgrounds) fill with reduced opacity.
+            if (path.isFillEnabled() && path.getFillOpacity() < 1.0) {
+                Graphics2D tg = (Graphics2D) g2d.create();
+                tg.setComposite(AlphaComposite.SrcOver.derive((float) path.getFillOpacity()));
+                tg.fill(path);
+                tg.dispose();
+                continue;
+            }
             if (path.isFillEnabled()) {
                 g2d.fill(path);
             }

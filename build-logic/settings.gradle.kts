@@ -1,3 +1,5 @@
+rootProject.name = "xicons-build-logic"
+
 dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {

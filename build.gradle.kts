@@ -4,5 +4,5 @@ plugins {
 
 subprojects {
     group = "cn.enaium.xicons"
-    version = "1.0.1"
+    version = "1.0.2"
 }

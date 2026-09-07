@@ -84,7 +84,7 @@ open class GenerateComposeTask : DefaultTask() {
         val content = svg.readText()
         val viewBox = extractSvgViewBoxAttributes(content).firstOrNull() ?: "0 0 24 24"
 
-        val iconBuilder = kotlinBuilder("cn.enaium.xicons.compose.${dir.name}", svgName)
+        val iconBuilder = kotlinBuilder("cn.enaium.xicons.compose.icons.${dir.name}", svgName)
             .indent("    ")
             .addImport("androidx.compose.ui.graphics", "SolidColor")
             .addImport("androidx.compose.ui.graphics.vector", "ImageVector", "group", "path")
@@ -101,7 +101,7 @@ open class GenerateComposeTask : DefaultTask() {
             PropertySpec.builder(svg, imageVector)
                 .receiver(
                     ClassName.bestGuess(
-                        "cn.enaium.xicons.compose.${dir.name.uppercaseFirstChar()}Icons."
+                        "cn.enaium.xicons.compose.icons.${dir.name.uppercaseFirstChar()}Icons."
                                 + type.text
                     )
                 )
@@ -159,7 +159,14 @@ open class GenerateComposeTask : DefaultTask() {
 
         svg(content, true).forEach { shape ->
             val params = mutableListOf<String>()
-            params.add("fill = " + if (shape.fill) "SolidColor(androidx.compose.ui.graphics.Color.Black)" else "null")
+            val fillColor = if (shape.fill) {
+                if (shape.fillOpacity < 1f) {
+                    "SolidColor(androidx.compose.ui.graphics.Color.Black.copy(alpha = ${shape.fillOpacity}f))"
+                } else {
+                    "SolidColor(androidx.compose.ui.graphics.Color.Black)"
+                }
+            } else "null"
+            params.add("fill = $fillColor")
             params.add("stroke = " + if (shape.stroke) "SolidColor(androidx.compose.ui.graphics.Color.Black)" else "null")
             params.add("strokeLineWidth = ${shape.strokeWidth}f")
             params.add("strokeLineCap = StrokeCap.${(shape.strokeLineCap ?: "butt").replaceFirstChar { it.uppercase() }}")
@@ -201,31 +208,22 @@ open class GenerateComposeTask : DefaultTask() {
         generatedTypes: Set<IconsType>,
         iconsByType: Map<IconsType, List<Pair<String, String>>>
     ) {
-        val collectionBuilder = kotlinBuilder("cn.enaium.xicons.compose", "${dirName.uppercaseFirstChar()}Icons")
+        val collectionBuilder = kotlinBuilder("cn.enaium.xicons.compose.icons", "${dirName.uppercaseFirstChar()}Icons")
             .addImport("androidx.compose.ui.graphics.vector", "ImageVector")
 
         val mainObject = TypeSpec.objectBuilder("${dirName.uppercaseFirstChar()}Icons")
             .addModifiers(KModifier.PUBLIC)
 
+        // Style grouping objects (Filled/Outlined/...) are kept purely as
+        // namespaces for the icon properties; no `all` lists are generated,
+        // so unused ImageVectors can be pruned by the compiler/shrinker.
         generatedTypes.forEach { type ->
             val icons = iconsByType[type].orEmpty()
             val subObject = TypeSpec.objectBuilder(type.text)
                 .addModifiers(KModifier.PUBLIC)
-            val allProperty = PropertySpec.builder("all", ClassName("kotlin.collections", "List").parameterizedBy(
-                ClassName("kotlin", "Pair").parameterizedBy(STRING, ClassName("androidx.compose.ui.graphics.vector", "ImageVector"))
-            ))
-                .addModifiers(KModifier.PUBLIC)
-            val listBuilder = CodeBlock.builder().add("listOf(\n")
-            listBuilder.indent()
-            icons.forEachIndexed { index, (name, _) ->
-                collectionBuilder.addImport("cn.enaium.xicons.compose.$dirName", name)
-                listBuilder.add("%S to %L", name, name)
-                if (index < icons.size - 1) listBuilder.add(",\n") else listBuilder.add("\n")
+            icons.forEach { (name, _) ->
+                collectionBuilder.addImport("cn.enaium.xicons.compose.icons.$dirName", name)
             }
-            listBuilder.unindent()
-            listBuilder.add(")")
-            allProperty.initializer(listBuilder.build())
-            subObject.addProperty(allProperty.build())
             mainObject.addType(subObject.build())
         }
 

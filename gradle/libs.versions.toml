@@ -3,11 +3,29 @@ javafx = "0.1.0"
 javapoet = "0.19.0"
 kotlinpoet = "2.3.0"
 flatlaf = "3.7.2"
+imgui = "1.0.13"
+sdl = "1.0.10"
+maven = "0.37.0"
+android = "9.3.1"
+kotlin = "2.4.10"
+compose = "1.12.0"
 
 [libraries]
 javapoet = { module = "com.palantir.javapoet:javapoet", version.ref = "javapoet" }
 kotlinpoet = { module = "com.squareup:kotlinpoet", version.ref = "kotlinpoet" }
 flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
+imgui-kmp = { module = "cn.enaium.imgui:imgui-kmp", version.ref = "imgui" }
+sdl-kmp = { module = "cn.enaium.sdl:sdl-kmp", version.ref = "sdl" }
+maven-publish-plugin = { module = "com.vanniktech.maven.publish:com.vanniktech.maven.publish.gradle.plugin", version.ref = "maven" }
+kotlin-multiplatform-plugin = { module = "org.jetbrains.kotlin.multiplatform:org.jetbrains.kotlin.multiplatform.gradle.plugin", version.ref = "kotlin" }
+kotlin-compose-plugin = { module = "org.jetbrains.kotlin.plugin.compose:org.jetbrains.kotlin.plugin.compose.gradle.plugin", version.ref = "kotlin" }
+compose-plugin = { module = "org.jetbrains.compose:org.jetbrains.compose.gradle.plugin", version.ref = "compose" }
+android-kmp-plugin = { module = "com.android.tools.build:gradle", version.ref = "android" }
 
 [plugins]
 javafx = { id = "org.openjfx.javafxplugin", version.ref = "javafx" }
+maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+compose = { id = "org.jetbrains.compose", version.ref = "compose" }
+android-kmp = { id = "com.android.kotlin.multiplatform.library", version.ref = "android" }

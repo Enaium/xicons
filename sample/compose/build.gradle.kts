@@ -18,6 +18,7 @@ kotlin {
         }
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
+            implementation(kotlin("reflect"))
         }
     }
 

@@ -36,6 +36,16 @@ public class ExtendPath extends Path {
         return fillEnabled;
     }
 
+    private double fillOpacity = 1.0;
+
+    public void setFillOpacity(double fillOpacity) {
+        this.fillOpacity = fillOpacity;
+    }
+
+    public double getFillOpacity() {
+        return fillOpacity;
+    }
+
     public void setStrokeLineCap(String cap) {
         switch (cap) {
             case "round":

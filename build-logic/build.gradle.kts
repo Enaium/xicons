@@ -26,5 +26,9 @@ gradlePlugin {
             id = "xicons-compose"
             implementationClass = "XIconsComposePlugin"
         }
+        create("xicons-imgui") {
+            id = "xicons-imgui"
+            implementationClass = "XIconsImguiPlugin"
+        }
     }
 }

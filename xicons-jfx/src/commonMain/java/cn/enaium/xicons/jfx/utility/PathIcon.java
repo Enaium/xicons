@@ -66,7 +66,12 @@ public abstract class PathIcon extends Group {
             path.setScaleX(width / 24.0);
             path.setScaleY(height / 24.0);
             boolean stroked = shape.getStrokeWidth() > 0;
-            path.setFill(shape.isFillEnabled() ? color : null);
+            if (shape.isFillEnabled() && shape.getFillOpacity() < 1.0) {
+                path.setFill(Color.color(color.getRed(), color.getGreen(), color.getBlue(),
+                        color.getOpacity() * shape.getFillOpacity()));
+            } else {
+                path.setFill(shape.isFillEnabled() ? color : null);
+            }
             path.setStroke(stroked ? color : null);
             path.setStrokeWidth(shape.getStrokeWidth());
             path.setStrokeLineCap(shape.getStrokeLineCap());

@@ -1,69 +1,100 @@
-import cn.enaium.xicons.swing.icons.*;
+import cn.enaium.xicons.swing.utility.PathIcon;
 import com.formdev.flatlaf.FlatLightLaf;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
-import java.lang.reflect.Field;
+import java.io.File;
+import java.net.JarURLConnection;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.jar.JarFile;
 
 /**
  * @author Enaium
  */
 public class Main {
-    public static void main(String[] args) throws IllegalAccessException {
+    private static final String[] LIBS = {"antd", "carbon", "fa", "fluent", "ionicons4", "ionicons5", "material", "tabler"};
+    private static final String[] STYLES = {"Filled", "Outlined", "Twotone", "Default", "Regular", "Sharp", "Round"};
+
+    public static void main(String[] args) {
         FlatLightLaf.setup();
         JFrame frame = new JFrame("XIcons Swing");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(1000, 700);
         JTabbedPane tabbedPane = new JTabbedPane();
-        // Fluent
-        tabbedPane.addTab("Fluent Regular", createIconPanel(FluentIcons.Regular, "Fluent Regular Icons"));
-        tabbedPane.addTab("Fluent Filled", createIconPanel(FluentIcons.Filled, "Fluent Filled Icons"));
-        // Antd
-        tabbedPane.addTab("Antd Filled", createIconPanel(AntdIcons.Filled, "Antd Filled Icons"));
-        tabbedPane.addTab("Antd Outlined", createIconPanel(AntdIcons.Outlined, "Antd Outlined Icons"));
-        tabbedPane.addTab("Antd Twotone", createIconPanel(AntdIcons.Twotone, "Antd Twotone Icons"));
-        // Carbon
-        tabbedPane.addTab("Carbon Default", createIconPanel(CarbonIcons.Default, "Carbon Default Icons"));
-        tabbedPane.addTab("Carbon Filled", createIconPanel(CarbonIcons.Filled, "Carbon Filled Icons"));
-        tabbedPane.addTab("Carbon Round", createIconPanel(CarbonIcons.Round, "Carbon Round Icons"));
-        // Fa
-        tabbedPane.addTab("Fa Default", createIconPanel(FaIcons.Default, "Fa Default Icons"));
-        tabbedPane.addTab("Fa Regular", createIconPanel(FaIcons.Regular, "Fa Regular Icons"));
-        // Ionicons4
-        tabbedPane.addTab("Ionicons4 Default", createIconPanel(Ionicons4Icons.Default, "Ionicons4 Default Icons"));
-        // Ionicons5
-        tabbedPane.addTab("Ionicons5 Default", createIconPanel(Ionicons5Icons.Default, "Ionicons5 Default Icons"));
-        tabbedPane.addTab("Ionicons5 Sharp", createIconPanel(Ionicons5Icons.Sharp, "Ionicons5 Sharp Icons"));
-        // Material
-        tabbedPane.addTab("Material Filled", createIconPanel(MaterialIcons.Filled, "Material Filled Icons"));
-        tabbedPane.addTab("Material Outlined", createIconPanel(MaterialIcons.Outlined, "Material Outlined Icons"));
-        tabbedPane.addTab("Material Round", createIconPanel(MaterialIcons.Round, "Material Round Icons"));
-        tabbedPane.addTab("Material Sharp", createIconPanel(MaterialIcons.Sharp, "Material Sharp Icons"));
-        tabbedPane.addTab("Material Twotone", createIconPanel(MaterialIcons.Twotone, "Material Twotone Icons"));
-        // Tabler
-        tabbedPane.addTab("Tabler Default", createIconPanel(TablerIcons.Default, "Tabler Default Icons"));
-        tabbedPane.addTab("Tabler Filled", createIconPanel(TablerIcons.Filled, "Tabler Filled Icons"));
-        tabbedPane.addTab("Tabler Sharp", createIconPanel(TablerIcons.Sharp, "Tabler Sharp Icons"));
-
+        for (String lib : LIBS) {
+            Map<String, List<Class<?>>> byStyle = scanLib(lib);
+            byStyle.forEach((style, classes) ->
+                    tabbedPane.addTab(cap(lib) + " " + style, createIconPanel(classes, cap(lib) + " " + style + " Icons")));
+        }
         frame.setContentPane(tabbedPane);
         frame.setLocationRelativeTo(null);
         frame.setResizable(true);
         frame.setVisible(true);
     }
 
-    private static JPanel createIconPanel(Object iconContainer, String title) throws IllegalAccessException {
+    /** Scans the classpath for icon classes of one library, grouped by style. */
+    private static Map<String, List<Class<?>>> scanLib(String lib) {
+        Map<String, List<Class<?>>> byStyle = new LinkedHashMap<>();
+        String pkg = "cn/enaium/xicons/swing/icons/" + lib;
+        String cp = System.getProperty("java.class.path");
+        for (String entry : cp.split(File.pathSeparator)) {
+            File f = new File(entry);
+            if (f.isDirectory()) {
+                File dir = new File(f, pkg);
+                File[] files = dir.listFiles((d, name) -> name.endsWith(".class"));
+                if (files != null) {
+                    for (File cf : files) {
+                        addIconClass(cf.getName().replace(".class", ""), lib, byStyle);
+                    }
+                }
+            } else if (f.isFile() && f.getName().endsWith(".jar")) {
+                try (JarFile jar = new JarFile(f)) {
+                    jar.stream()
+                            .filter(e -> e.getName().startsWith(pkg + "/") && e.getName().endsWith(".class")
+                                    && !e.getName().contains("$"))
+                            .forEach(e -> {
+                                String simple = e.getName().substring(e.getName().lastIndexOf('/') + 1).replace(".class", "");
+                                addIconClass(simple, lib, byStyle);
+                            });
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        return byStyle;
+    }
+
+    private static void addIconClass(String simple, String lib, Map<String, List<Class<?>>> byStyle) {
+        String style = "Default";
+        for (String s : STYLES) {
+            if (simple.endsWith(s)) {
+                style = s;
+                break;
+            }
+        }
+        try {
+            Class<?> c = Class.forName("cn.enaium.xicons.swing.icons." + lib + "." + simple);
+            if (PathIcon.class.isAssignableFrom(c)) {
+                byStyle.computeIfAbsent(style, k -> new ArrayList<>()).add(c);
+            }
+        } catch (ClassNotFoundException ignored) {
+        }
+    }
+
+    private static JPanel createIconPanel(List<Class<?>> iconClasses, String title) {
         List<JLabel> labels = new ArrayList<>();
-        for (Field field : iconContainer.getClass().getFields()) {
-            Object icon = field.get(iconContainer);
-            if (icon instanceof Icon) {
-                JLabel label = new JLabel((Icon) icon);
-                label.setToolTipText(field.getName());
-                label.setName(field.getName());
+        for (Class<?> c : iconClasses) {
+            try {
+                PathIcon icon = (PathIcon) c.getDeclaredConstructor().newInstance();
+                JLabel label = new JLabel(icon);
+                label.setToolTipText(c.getSimpleName());
+                label.setName(c.getSimpleName());
                 labels.add(label);
+            } catch (Exception ignored) {
             }
         }
 
@@ -108,9 +139,11 @@ public class Main {
 
         JScrollPane scrollPane = new JScrollPane(contentPane);
         scrollPane.getVerticalScrollBar().setUnitIncrement(20);
-        scrollPane.getHorizontalScrollBar().setUnitIncrement(20);
         panel.add(scrollPane, BorderLayout.CENTER);
-
         return panel;
+    }
+
+    private static String cap(String s) {
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 }
