@@ -25,7 +25,6 @@ package cn.enaium.xicons.imgui
 import cn.enaium.imgui.ImDrawList
 import kotlin.math.abs
 import cn.enaium.imgui.ImVec2
-import cn.enaium.imgui.imguiTexUvWhitePixel
 
 /**
  * A single point in a path.
@@ -222,7 +221,7 @@ public class IconMesh internal constructor(data: IconData) {
     }
 
     private companion object {
-        val cachedWhiteUv: FloatArray by lazy { imguiTexUvWhitePixel() }
+        val cachedWhiteUv: FloatArray by lazy { whiteUv() }
     }
 
     /**
